@@ -62,7 +62,7 @@
   const RS = {
     Config: {},
     Util: {},
-    Registry: { Relics: {}, Enemies: {}, ICON: {} },
+    Registry: { Relics: {}, Enemies: {}, ICON: {}, Bestiary: [] },
     State: {},
     Systems: {},
     Render: {},
@@ -87,7 +87,13 @@
       enemy: '#7c3131',
       enemyHP: '#a64',
       enemyHPBG: '#2b2b2b',
-      border: '#233423'
+      border: '#233423',
+      groundBase: '#2f2214',
+      groundShade: 'rgba(46,34,20,0.45)',
+      groundHighlight: 'rgba(90,68,38,0.5)',
+      grassPrimary: '#3f7f3a',
+      grassHighlight: '#78d07d',
+      pebble: 'rgba(80,68,52,0.7)'
     },
     BALANCE: {
       HIT_IFRAMES: 0.9,
@@ -95,9 +101,14 @@
       DMG_PER_MIN: 0.12,
       XP_EPS: 1e-6,
       LEECH_APPLY_RATE: 0.4,
-      CHARGER_START_S: 180,
-      CHARGER_BASE_PERIOD_S: 12,
-      CHARGER_MIN_PERIOD_S: 6
+      BAT_START_S: 180,
+      BAT_BASE_PERIOD_S: 12,
+      BAT_MIN_PERIOD_S: 6
+    },
+    ENEMIES: {
+      slime: { hp: 10, speed: 80, damage: 8, xp: 5, splitCount: 2 },
+      slimeMini: { hp: 5, speed: 90, damage: 6, xp: 2 },
+      bat: { hp: 12, speed: 120, damage: 12, xp: 6 }
     }
   };
 
@@ -162,7 +173,7 @@
     enemies: [], projs: [], orbs: [], heals: [], bombs: [], placedBombs: [], bolts: [], trails: [],
     spinnerAcc: new WeakMap(),
     spawnTimer: 0,
-    chargerTimer: 12,
+    batTimer: RS.Config.BALANCE.BAT_BASE_PERIOD_S,
     keys: {},
     currentChoices: null,
     levelUpFrom: null,
@@ -200,6 +211,205 @@
     wisdom: '🔆',
     xp: '📜'
   };
+
+  // =====================================
+  // Bestiary Sprites
+  // =====================================
+  function drawSpriteBat(ctx, x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#171f3a';
+    ctx.beginPath();
+    ctx.moveTo(0, -6);
+    ctx.quadraticCurveTo(12, -10, 14, -1);
+    ctx.quadraticCurveTo(10, 2, 12, 4);
+    ctx.quadraticCurveTo(7, 2, 8, 7);
+    ctx.quadraticCurveTo(4, 4, 0, 6);
+    ctx.quadraticCurveTo(-4, 4, -8, 7);
+    ctx.quadraticCurveTo(-7, 2, -12, 4);
+    ctx.quadraticCurveTo(-10, 2, -14, -1);
+    ctx.quadraticCurveTo(-12, -10, 0, -6);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#252f57';
+    ctx.beginPath();
+    ctx.moveTo(0, -6);
+    ctx.quadraticCurveTo(8, -6, 9, -1);
+    ctx.quadraticCurveTo(6, 0, 7, 3);
+    ctx.lineTo(0, 1);
+    ctx.lineTo(-7, 3);
+    ctx.quadraticCurveTo(-6, 0, -9, -1);
+    ctx.quadraticCurveTo(-8, -6, 0, -6);
+    ctx.fill();
+    ctx.fillStyle = '#424b7d';
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.quadraticCurveTo(4, -5, 5, -1);
+    ctx.quadraticCurveTo(3, 0, 4, 2);
+    ctx.lineTo(0, 0);
+    ctx.lineTo(-4, 2);
+    ctx.quadraticCurveTo(-3, 0, -5, -1);
+    ctx.quadraticCurveTo(-4, -5, 0, -5);
+    ctx.fill();
+    ctx.fillStyle = '#ffe08a';
+    ctx.fillRect(-2.5, -2, 2, 2);
+    ctx.fillRect(0.5, -2, 2, 2);
+    ctx.fillStyle = '#f87171';
+    ctx.fillRect(-1, 1, 2, 1);
+    ctx.restore();
+  }
+  function drawSpriteSlime(ctx, x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(0, 7, 8.5, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1f3a8a';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 9, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2563eb';
+    ctx.beginPath();
+    ctx.ellipse(0, -1, 8, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#60a5fa';
+    ctx.beginPath();
+    ctx.ellipse(-2.5, -3, 3, 1.6, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(3.5, -4, 2.2, 1.1, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(-3, 1, 1.2, 1.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(3, 1, 1.2, 1.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1e3a8a';
+    ctx.beginPath();
+    ctx.moveTo(-2, 4);
+    ctx.quadraticCurveTo(0, 5, 2, 4);
+    ctx.quadraticCurveTo(0, 6, -2, 4);
+    ctx.fill();
+    ctx.restore();
+  }
+  function drawSpriteSlimePebble(ctx, x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(0, 6, 9, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1f3a8a';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 9, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#3b82f6';
+    ctx.beginPath();
+    ctx.ellipse(-1, -1, 7, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#bfdbfe';
+    ctx.beginPath();
+    ctx.ellipse(-2, -3, 3, 1.4, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.beginPath();
+    ctx.ellipse(-2.5, 0.8, 1, 1.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(2.5, 0.8, 1, 1.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  function drawSpriteSkull(ctx, x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#f4f4f5';
+    ctx.fillRect(-6, -6, 12, 12);
+    ctx.fillStyle = '#d4d4d8';
+    ctx.fillRect(-5, -5, 10, 5);
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(-4, -3, 3, 3);
+    ctx.fillRect(1, -3, 3, 3);
+    ctx.fillRect(-2, 1, 4, 2);
+    ctx.fillRect(-1, 3, 2, 2);
+    ctx.restore();
+  }
+  function drawSpriteGoblin(ctx, x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#14532d';
+    ctx.fillRect(-6, -4, 12, 12);
+    ctx.fillRect(-8, -2, 4, 4);
+    ctx.fillRect(4, -2, 4, 4);
+    ctx.fillStyle = '#16a34a';
+    ctx.fillRect(-5, -3, 10, 6);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(-3, -1, 2, 2);
+    ctx.fillRect(1, -1, 2, 2);
+    ctx.fillStyle = '#a16207';
+    ctx.fillRect(-1, 2, 2, 2);
+    ctx.fillStyle = '#1c1917';
+    ctx.fillRect(-4, 5, 8, 1);
+    ctx.restore();
+  }
+  function drawSpriteSpider(ctx, x, y, scale) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(scale, scale);
+    ctx.fillStyle = '#111827';
+    ctx.fillRect(-4, -3, 8, 6);
+    ctx.fillRect(-2, -5, 4, 2);
+    ctx.fillStyle = '#1f2937';
+    ctx.fillRect(-5, -2, 2, 4);
+    ctx.fillRect(3, -2, 2, 4);
+    ctx.fillRect(-6, 0, 2, 2);
+    ctx.fillRect(4, 0, 2, 2);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(-3, -1, 2, 2);
+    ctx.fillRect(1, -1, 2, 2);
+    ctx.restore();
+  }
+  const Bestiary = [
+    {
+      id: 'bat',
+      name: 'Glimmer Bat',
+      blurb: 'Cave swarmers lit by faint starlight.',
+      draw(ctx, x, y, scale) { drawSpriteBat(ctx, x, y, scale); }
+    },
+    {
+      id: 'slime',
+      name: 'Azure Slime',
+      blurb: 'Slow blue ooze that splits when struck.',
+      draw(ctx, x, y, scale) { drawSpriteSlime(ctx, x, y, scale); }
+    },
+    {
+      id: 'skull',
+      name: 'Whisper Skull',
+      blurb: 'Floating bone kept aloft by whispers.',
+      draw(ctx, x, y, scale) { drawSpriteSkull(ctx, x, y, scale); }
+    },
+    {
+      id: 'goblin',
+      name: 'Fenn Goblin',
+      blurb: 'Relic-hungry ambusher from the fens.',
+      draw(ctx, x, y, scale) { drawSpriteGoblin(ctx, x, y, scale); }
+    },
+    {
+      id: 'spider',
+      name: 'Gravetwine Spider',
+      blurb: 'Silent hunter weaving luminous tethers.',
+      draw(ctx, x, y, scale) { drawSpriteSpider(ctx, x, y, scale); }
+    }
+  ];
+  RS.Registry.Bestiary = Bestiary;
 
   // =====================================
   // Relics
@@ -329,13 +539,22 @@
   function addEnemyKind(kind) { RS.Registry.Enemies[kind.id] = kind; }
 
   addEnemyKind({
-    id: 'chaser',
+    id: 'slime',
     make(s, opts) {
-      const t = s.elapsed / 60;
-      const base = 60 + t * 20;
-      const speed = 70 + t * 6;
-      const r = 12;
-      return { type: 'chaser', x: opts.x, y: opts.y, vx: 0, vy: 0, r, speed, hp: base, maxHp: base, dmg: 10 + t * 2 };
+      const stats = RS.Config.ENEMIES.slime;
+      return {
+        type: 'slime',
+        x: opts.x,
+        y: opts.y,
+        vx: 0,
+        vy: 0,
+        r: 9,
+        speed: stats.speed,
+        hp: stats.hp,
+        maxHp: stats.hp,
+        dmg: stats.damage,
+        xp: stats.xp
+      };
     },
     update(e, dt, s) {
       const dx = s.player.x - e.x, dy = s.player.y - e.y, h = Math.hypot(dx, dy) || 1;
@@ -345,22 +564,67 @@
       e.y += e.vy * dt;
     },
     draw(e, ctx, s) {
-      ctx.fillStyle = RS.Config.COLORS.enemy;
+      ctx.save();
+      ctx.fillStyle = 'rgba(12,20,28,0.45)';
       ctx.beginPath();
-      ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+      ctx.ellipse(e.x, e.y + 6, 10, 4, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+      drawSpriteSlime(ctx, e.x, e.y - 2, 0.78);
     }
   });
 
   addEnemyKind({
-    id: 'charger',
+    id: 'slimeMini',
     make(s, opts) {
-      const t = s.elapsed / 60;
-      const base = 60 + t * 20;
-      const hp = Math.floor(base * 2.6 + 80);
+      const stats = RS.Config.ENEMIES.slimeMini;
       return {
-        type: 'charger', x: opts.x, y: opts.y, vx: 0, vy: 0, r: 18,
-        speed: 60 + t * 4, hp, maxHp: hp, dmg: 18 + t * 3,
+        type: 'slimeMini',
+        x: opts.x,
+        y: opts.y,
+        vx: 0,
+        vy: 0,
+        r: 6,
+        speed: stats.speed,
+        hp: stats.hp,
+        maxHp: stats.hp,
+        dmg: stats.damage,
+        xp: stats.xp,
+        wobble: Math.random() * Math.PI * 2
+      };
+    },
+    update(e, dt, s) {
+      e.wobble += dt * 3;
+      const dx = s.player.x - e.x, dy = s.player.y - e.y, h = Math.hypot(dx, dy) || 1;
+      const sway = Math.sin(e.wobble) * 0.35;
+      e.vx = (dx / h) * e.speed + dy * 0.0 + sway * 20;
+      e.vy = (dy / h) * e.speed + sway * 12;
+      const len = Math.hypot(e.vx, e.vy) || 1;
+      const scale = e.speed / len;
+      e.vx *= scale;
+      e.vy *= scale;
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
+    },
+    draw(e, ctx) {
+      ctx.save();
+      ctx.fillStyle = 'rgba(12,20,28,0.4)';
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y + 4, 7, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      drawSpriteSlimePebble(ctx, e.x, e.y - 1, 0.6);
+    }
+  });
+
+  addEnemyKind({
+    id: 'bat',
+    make(s, opts) {
+      const stats = RS.Config.ENEMIES.bat;
+      return {
+        type: 'bat', x: opts.x, y: opts.y, vx: 0, vy: 0, r: 8,
+        speed: stats.speed, hp: stats.hp, maxHp: stats.hp, dmg: stats.damage,
+        xp: stats.xp,
         state: 'chase', timer: 0, dirX: 0, dirY: 0
       };
     },
@@ -399,26 +663,27 @@
       }
     },
     draw(e, ctx, s) {
-      const rr = e.r;
-      ctx.fillStyle = '#f3c623';
+      ctx.save();
+      ctx.fillStyle = 'rgba(12,20,28,0.5)';
       ctx.beginPath();
-      ctx.moveTo(e.x, e.y + rr);
-      ctx.lineTo(e.x - rr * 0.9, e.y - rr * 0.6);
-      ctx.lineTo(e.x + rr * 0.9, e.y - rr * 0.6);
-      ctx.closePath();
+      ctx.ellipse(e.x, e.y + 6, 9, 3.5, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+      drawSpriteBat(ctx, e.x, e.y - 2, 0.8);
       if (e.state === 'charge') {
         const a = 0.5 + 0.5 * Math.sin(performance.now() / 80);
-        ctx.strokeStyle = `rgba(255,255,120,${a})`;
-        ctx.lineWidth = 3;
+        ctx.strokeStyle = `rgba(252,211,77,${a})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y - 4, 14, 0, Math.PI * 2);
         ctx.stroke();
       }
       if (e.state === 'dash') {
-        ctx.strokeStyle = 'rgba(255,255,120,0.4)';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(252,211,77,0.4)';
+        ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.moveTo(e.x - e.dirX * rr * 1.4, e.y - e.dirY * rr * 1.4);
-        ctx.lineTo(e.x + e.dirX * rr * 1.4, e.y + e.dirY * rr * 1.4);
+        ctx.moveTo(e.x - e.dirX * 14, e.y - e.dirY * 14);
+        ctx.lineTo(e.x + e.dirX * 14, e.y + e.dirY * 14);
         ctx.stroke();
       }
     }
@@ -461,18 +726,18 @@
       const rate = Math.max(0.15, 1.4 - (s.elapsed / 60) * 0.12);
       if (s.spawnTimer <= 0) {
         const p = this.spawnAtEdge(s);
-        s.enemies.push(RS.Registry.Enemies.chaser.make(s, p));
+        s.enemies.push(RS.Registry.Enemies.slime.make(s, p));
         s.spawnTimer = rate;
       }
-      if (s.elapsed >= RS.Config.BALANCE.CHARGER_START_S) {
-        s.chargerTimer -= dt;
-        const base = RS.Config.BALANCE.CHARGER_BASE_PERIOD_S,
-              minP = RS.Config.BALANCE.CHARGER_MIN_PERIOD_S;
-        if (s.chargerTimer <= 0) {
+      if (s.elapsed >= RS.Config.BALANCE.BAT_START_S) {
+        s.batTimer -= dt;
+        const base = RS.Config.BALANCE.BAT_BASE_PERIOD_S;
+        const minP = RS.Config.BALANCE.BAT_MIN_PERIOD_S;
+        if (s.batTimer <= 0) {
           const p = this.spawnAtEdge(s);
-          s.enemies.push(RS.Registry.Enemies.charger.make(s, p));
-          s.chargerTimer = base - Math.min(6, (s.elapsed - 180) / 120 * 2);
-          if (s.chargerTimer < minP) s.chargerTimer = minP;
+          s.enemies.push(RS.Registry.Enemies.bat.make(s, p));
+          const ramp = Math.min(6, Math.max(0, (s.elapsed - RS.Config.BALANCE.BAT_START_S) / 120 * 2));
+          s.batTimer = Math.max(minP, base - ramp);
         }
       }
     },
@@ -662,7 +927,10 @@
               const from = s.player.level;
               s.player.xp -= s.player.xpTo;
               s.player.level += 1;
-              s.player.xpTo = Math.floor(s.player.xpTo * 1.22 + 8);
+              const nextLevel = s.player.level;
+              const mult = nextLevel <= 10 ? 1.22 : 1.12;
+              const add = nextLevel <= 10 ? 8 : 4;
+              s.player.xpTo = Math.floor(s.player.xpTo * mult + add);
               RS.State.levelUpFrom = from;
               RS.State.levelUpTo = s.player.level;
               RS.UI.rollChoices();
@@ -684,7 +952,18 @@
       for (let i = s.enemies.length - 1; i >= 0; i--) {
         const e = s.enemies[i];
         if (e.hp <= 0) {
-          s.orbs.push({ x: e.x, y: e.y, v: 4 + RS.Util.rnd(1, 4) });
+          if (e.type === 'slime') {
+            const splits = RS.Config.ENEMIES.slime.splitCount || 0;
+            for (let k = 0; k < splits; k++) {
+              const ang = (Math.PI * 2 * k) / splits + Math.random() * 0.6;
+              const d = 12 + Math.random() * 6;
+              const nx = RS.Util.clamp(e.x + Math.cos(ang) * d, 8, RS.Config.MAP - 8);
+              const ny = RS.Util.clamp(e.y + Math.sin(ang) * d, 8, RS.Config.MAP - 8);
+              s.enemies.push(RS.Registry.Enemies.slimeMini.make(s, { x: nx, y: ny }));
+            }
+          }
+          const xpValue = (typeof e.xp === 'number') ? e.xp : 4 + RS.Util.rnd(1, 4);
+          s.orbs.push({ x: e.x, y: e.y, v: xpValue });
           if (Math.random() < 0.02) s.heals.push({ x: e.x, y: e.y, phase: 0 });
           s.enemies.splice(i, 1);
           s.stats.kills++;
@@ -723,7 +1002,7 @@
       s.gameOver = false;
       s.elapsed = 0;
       s.spinnerAcc = new WeakMap();
-      s.chargerTimer = RS.Config.BALANCE.CHARGER_BASE_PERIOD_S;
+      s.batTimer = RS.Config.BALANCE.BAT_BASE_PERIOD_S;
       RS.State.mode = 'playing';
       RS.UI.uiButtons = [];
       RS.UI.showLevelModal(false);
@@ -744,9 +1023,10 @@
   // =====================================
   RS.UI = {
     uiButtons: [],
-    addBtn(x, y, w, h, label, action) {
-      this.uiButtons.push({ x, y, w, h, label, action });
-      RS.Render.drawButton(x, y, w, h, label);
+    addBtn(x, y, w, h, label, action, opts) {
+      const passive = !!(opts && opts.passive);
+      RS.Render.drawButton(x, y, w, h, label, passive);
+      if (!passive && typeof action === 'function') this.uiButtons.push({ x, y, w, h, label, action });
     },
     click(ev) {
       const r = cvs.getBoundingClientRect();
@@ -798,7 +1078,10 @@
     }
   };
 
-  cvs.addEventListener('click', RS.UI.click);
+  cvs.addEventListener('click', (ev) => {
+    if (RS.State.mode === 'attract') { RS.State.mode = 'menu'; return; }
+    RS.UI.click(ev);
+  });
 
   // =====================================
   // Input
@@ -821,12 +1104,15 @@
   // Renderers
   // =====================================
   RS.Render = {
-    drawButton(x, y, w, h, label) {
-      ctx.fillStyle = '#047857';
+    drawButton(x, y, w, h, label, inactive = false) {
+      const fill = inactive ? '#1f2937' : '#047857';
+      const stroke = inactive ? '#111827' : '#046149';
+      const text = inactive ? '#9ca3af' : '#ffffff';
+      ctx.fillStyle = fill;
       ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = '#046149';
+      ctx.strokeStyle = stroke;
       ctx.strokeRect(x, y, w, h);
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = text;
       ctx.font = '14px ui-sans-serif,system-ui';
       ctx.textAlign = 'center';
       ctx.fillText(label, x + w / 2, y + h / 2 + 4);
@@ -888,20 +1174,64 @@
       const camX = s.player.x - W / 2, camY = s.player.y - H / 2;
       ctx.save();
       ctx.translate(-camX, -camY);
-      ctx.fillStyle = '#0a0f0a';
+      ctx.fillStyle = C.groundBase;
       ctx.fillRect(camX, camY, W, H);
-      const step = 96;
-      ctx.fillStyle = '#3a7f3a';
-      ctx.font = '14px ui-sans-serif,system-ui';
+      const step = 64;
       const startX = Math.floor((camX) / step) * step, startY = Math.floor((camY) / step) * step;
       for (let x = startX - step; x < camX + W + step; x += step) {
         for (let y = startY - step; y < camY + H + step; y += step) {
           const i = Math.floor(x / step), j = Math.floor(y / step);
-          const g = RS.Util.glyphAt(i, j);
-          if (!g) continue;
-          ctx.fillText(g, x + 12 + (i % 3) * 4, y + 18 + (j % 3) * 3);
+          const noise = ((i * 92837111) ^ (j * 689287499)) >>> 0;
+          const baseX = x;
+          const baseY = y;
+          if ((noise & 3) === 0) {
+            ctx.fillStyle = C.groundShade;
+            ctx.beginPath();
+            ctx.ellipse(baseX + step * 0.52, baseY + step * 0.68, step * 0.36, step * 0.16, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          if ((noise & 7) === 3) {
+            ctx.fillStyle = C.groundHighlight;
+            ctx.beginPath();
+            ctx.ellipse(baseX + step * 0.48, baseY + step * 0.42, step * 0.34, step * 0.14, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          const grassChance = (noise >> 3) & 7;
+          if (grassChance <= 2) {
+            const gx = baseX + 16 + (noise & 15);
+            const gy = baseY + 34 + ((noise >> 4) & 15);
+            ctx.strokeStyle = C.grassHighlight;
+            ctx.lineWidth = 1.4;
+            ctx.beginPath();
+            ctx.moveTo(gx, gy);
+            ctx.lineTo(gx - 5, gy - 11);
+            ctx.moveTo(gx, gy);
+            ctx.lineTo(gx + 5, gy - 10);
+            ctx.stroke();
+            ctx.strokeStyle = C.grassPrimary;
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(gx - 2, gy);
+            ctx.lineTo(gx - 3, gy - 12);
+            ctx.moveTo(gx + 2, gy);
+            ctx.lineTo(gx + 1, gy - 12);
+            ctx.moveTo(gx, gy);
+            ctx.lineTo(gx, gy - 13);
+            ctx.stroke();
+          }
+          if (((noise >> 5) & 15) === 0) {
+            ctx.fillStyle = C.pebble;
+            ctx.beginPath();
+            ctx.ellipse(baseX + 12 + (noise & 7) * 4, baseY + 10 + ((noise >> 6) & 7) * 3, 2.6, 1.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.12)';
+            ctx.beginPath();
+            ctx.ellipse(baseX + 11 + (noise & 7) * 4, baseY + 9 + ((noise >> 6) & 7) * 3, 1.2, 0.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
+      ctx.lineWidth = 1;
       ctx.strokeStyle = C.border;
       ctx.lineWidth = 4;
       ctx.strokeRect(0, 0, MAP, MAP);
@@ -950,11 +1280,30 @@
 
       // Heals
       for (const h of RS.State.heals) {
-        const r = 6 + 2 * Math.sin(h.phase * 6);
-        ctx.fillStyle = '#fff';
+        const bob = Math.sin(h.phase * 4) * 3;
+        const pulse = 0.55 + 0.08 * Math.sin(h.phase * 6);
+        ctx.save();
+        ctx.translate(h.x, h.y - bob);
+        ctx.scale(pulse, pulse);
         ctx.beginPath();
-        ctx.arc(h.x, h.y, r, 0, Math.PI * 2);
+        ctx.moveTo(0, 6);
+        ctx.bezierCurveTo(-6, 0, -6, -5, -2, -6);
+        ctx.bezierCurveTo(0, -6.5, 0, -4, 0, -3);
+        ctx.bezierCurveTo(0, -4, 0, -6.5, 2, -6);
+        ctx.bezierCurveTo(6, -5, 6, 0, 0, 6);
+        ctx.closePath();
+        ctx.fillStyle = '#ef4444';
         ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = 'rgba(190,42,42,0.8)';
+        ctx.stroke();
+        ctx.restore();
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        ctx.beginPath();
+        ctx.ellipse(h.x, h.y + 8, 6 * pulse, 2.2 * pulse, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
 
       // Enemies + health bars
@@ -1152,20 +1501,29 @@
         ctx.textAlign = 'start';
         return;
       }
-      const panelW = 420, panelH = 220;
+      const panelW = 440, panelH = 280;
       ctx.fillStyle = 'rgba(0,0,0,0.7)';
       ctx.fillRect(W / 2 - panelW / 2, H / 2 + 40, panelW, panelH);
       const bx = W / 2 - panelW / 2 + 20, by = H / 2 + 60;
       const bw = panelW - 40, bh = 38;
       RS.UI.uiButtons = [];
-      RS.UI.addBtn(bx, by, bw, bh, 'Start', () => { RS.Systems.restart(RS.State); });
-      RS.UI.addBtn(bx, by + bh + 10, bw, bh, 'How to Play', () => { RS.State.mode = 'how'; });
-      RS.UI.addBtn(bx, by + 2 * (bh + 10), bw, bh, 'Options', () => { RS.State.mode = 'options'; });
-      RS.UI.addBtn(bx, by + 3 * (bh + 10), bw, bh, 'Credits', () => { RS.State.mode = 'credits'; });
-      if ([ 'how', 'options', 'credits' ].includes(s.mode)) {
-        const boxW = 540, boxH = 260;
+      const menuButtons = [
+        { label: 'Start', action: () => { RS.Systems.restart(RS.State); } },
+        { label: 'How to Play', action: () => { RS.State.mode = 'how'; } },
+        { label: 'Bestiary', action: () => { RS.State.mode = 'bestiary'; } },
+        { label: 'Options', action: () => { RS.State.mode = 'options'; } },
+        { label: 'Credits', action: () => { RS.State.mode = 'credits'; } }
+      ];
+      const overlayOpen = [ 'how', 'options', 'credits', 'bestiary' ].includes(s.mode);
+      menuButtons.forEach((btn, i) => {
+        RS.UI.addBtn(bx, by + i * (bh + 10), bw, bh, btn.label, btn.action, { passive: overlayOpen });
+      });
+      if (overlayOpen) {
+        const isBestiary = s.mode === 'bestiary';
+        const boxW = isBestiary ? 640 : 540;
+        const boxH = isBestiary ? 440 : 260;
         const x = W / 2 - boxW / 2, y = H / 2 - boxH / 2;
-        ctx.fillStyle = 'rgba(0,0,0,0.7)';
+        ctx.fillStyle = isBestiary ? 'rgba(12,17,32,0.9)' : 'rgba(0,0,0,0.7)';
         ctx.fillRect(x, y, boxW, boxH);
         ctx.fillStyle = '#e2e8f0';
         ctx.font = '18px ui-sans-serif,system-ui';
@@ -1194,6 +1552,37 @@
           ctx.fillText('Designed & built by Elara × Katherine', W / 2, y + 84);
           ctx.fillStyle = '#94a3b8';
           ctx.fillText('Sprites/fonts: system UI • Use CC0 assets for custom skins.', W / 2, y + 110);
+        }
+        if (isBestiary) {
+          ctx.fillText('Bestiary', W / 2, y + 32);
+          ctx.font = '14px ui-sans-serif,system-ui';
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText('Scout threats before they reach camp.', W / 2, y + 60);
+          const creatures = RS.Registry.Bestiary;
+          const cols = 2, cardW = 260, cardH = 104, gap = 18;
+          const startX = x + 30;
+          const startY = y + 88;
+          ctx.textAlign = 'left';
+          creatures.forEach((m, i) => {
+            const col = i % cols;
+            const row = (i / cols) | 0;
+            const cardX = startX + col * (cardW + gap);
+            const cardY = startY + row * (cardH + gap);
+            ctx.fillStyle = 'rgba(17,24,39,0.85)';
+            ctx.fillRect(cardX, cardY, cardW, cardH);
+            ctx.strokeStyle = 'rgba(148,163,184,0.4)';
+            ctx.strokeRect(cardX, cardY, cardW, cardH);
+            m.draw(ctx, cardX + 52, cardY + cardH / 2 - 4, 3);
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '16px ui-sans-serif,system-ui';
+            ctx.fillText(m.name, cardX + 96, cardY + 28);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '13px ui-sans-serif,system-ui';
+            ctx.fillText(m.blurb, cardX + 96, cardY + 52);
+            ctx.fillStyle = 'rgba(148,163,184,0.5)';
+            ctx.font = '12px ui-sans-serif,system-ui';
+            ctx.fillText('Not yet deployed in battle.', cardX + 96, cardY + 76);
+          });
         }
         RS.UI.addBtn(W / 2 - 60, y + boxH - 50, 120, 36, 'Back', () => { RS.State.mode = 'menu'; });
       }
@@ -1231,7 +1620,7 @@
 
   function draw() {
     const s = RS.State;
-    if ([ 'attract', 'menu', 'how', 'options', 'credits' ].includes(s.mode)) { RS.Render.attract(); return; }
+    if ([ 'attract', 'menu', 'how', 'options', 'credits', 'bestiary' ].includes(s.mode)) { RS.Render.attract(); return; }
     RS.Render.world();
     RS.Render.hud();
     RS.UI.uiButtons = [];
@@ -1266,4 +1655,3 @@
   </script>
 </body>
 </html>
-
