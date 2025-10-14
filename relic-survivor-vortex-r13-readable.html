@@ -107,15 +107,15 @@
       BAT_BASE_PERIOD_S: 12,
       BAT_MIN_PERIOD_S: 6,
       BAT_SURGE_S: 240,
-      GOBLIN_START_S: 210,
-      GOBLIN_BASE_PERIOD_S: 14,
-      GOBLIN_MIN_PERIOD_S: 7
+      GOBLIN_START_S: 300,
+      GOBLIN_BASE_PERIOD_S: 9,
+      GOBLIN_MIN_PERIOD_S: 4
     },
     ENEMIES: {
       slime: { hp: 10, speed: 80, damage: 8, xp: 5, splitCount: 2 },
       slimeMini: { hp: 5, speed: 90, damage: 6, xp: 2 },
       bat: { hp: 12, speed: 120, damage: 12, xp: 6 },
-      goblin: { hp: 40, speed: 140, damage: 18, xp: 12 }
+      goblin: { hp: 120, speed: 160, damage: 20, xp: 18 }
     }
   };
 
@@ -170,7 +170,7 @@
     },
     levels: {},
     spinner: { dmg: 12, rings: [] },
-    bow: { cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 1 },
+    bow: { cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 },
     storm: { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 },
     bomb: { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, radius: 140, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 },
     wake: { enabled: false, level: 0, life: 0.22 },
@@ -182,6 +182,7 @@
     spawnTimer: 0,
     batTimer: RS.Config.BALANCE.BAT_BASE_PERIOD_S,
     goblinTimer: RS.Config.BALANCE.GOBLIN_BASE_PERIOD_S,
+    goblinAmbushDone: false,
     keys: {},
     currentChoices: null,
     levelUpFrom: null,
@@ -449,7 +450,7 @@
     {
       id: 'spinner',
       name: 'Forest Spinner',
-      desc: '+rings & blades; blade damage ↑',
+      desc: '+rings & blades; wider coverage',
       max: 5,
       onPick(s) {
         const rings = s.spinner.rings;
@@ -457,7 +458,6 @@
         else if (rings.length === 1) rings.push({ count: 1, radius: 82,  speed: 2.8, angle: 0 });
         else if (rings.length === 2) rings.push({ count: 1, radius: 106, speed: 1.8, angle: 0 });
         else                         rings.forEach(r => r.count += 1);
-        s.spinner.dmg += 4;
       }
     },
     {
@@ -468,7 +468,6 @@
       onPick(s) {
         s.bow.arrows += 1;
         s.bow.cooldown = Math.max(0.55, s.bow.cooldown - 0.10);
-        s.bow.dmg += 2;
       }
     },
     {
@@ -476,6 +475,7 @@
       name: 'Riftfeather Fletching',
       desc: 'Arrows pierce +1 foe',
       max: 5,
+      canOffer: (s) => s.player.level >= 5 && (s.levels.bow || 0) >= 5,
       onPick(s) {
         s.bow.pierce += 1;
         s.bow.speed = Math.min(720, s.bow.speed + 10);
@@ -525,11 +525,11 @@
       name: 'Whirring Wake',
       desc: 'Blades leave fading trails (½ dmg) — requires Spinner',
       max: 5,
-      canOffer: (s) => (s.levels.spinner || 0) > 0,
+      canOffer: (s) => (s.levels.spinner || 0) >= 5 && s.player.level >= 5,
       onPick(s) {
         if (!s.wake.enabled) s.wake.enabled = true;
         s.wake.level += 1;
-        s.wake.life = Math.min(0.22 + 0.03 * (s.wake.level - 1), 0.4);
+        s.wake.life = Math.min(0.26 + 0.05 * (s.wake.level - 1), 0.7);
       }
     },
     {
@@ -697,10 +697,10 @@
       ctx.save();
       ctx.fillStyle = 'rgba(12,20,28,0.5)';
       ctx.beginPath();
-      ctx.ellipse(e.x, e.y + 6, 12, 4, 0, 0, Math.PI * 2);
+      ctx.ellipse(e.x, e.y + 6, 9, 3, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-      drawSpriteBat(ctx, e.x, e.y - 2, 1.05);
+      drawSpriteBat(ctx, e.x, e.y - 2, 0.8);
       if (e.state === 'charge') {
         const a = 0.5 + 0.5 * Math.sin(performance.now() / 80);
         ctx.strokeStyle = `rgba(252,211,77,${a})`;
@@ -724,43 +724,84 @@
     id: 'goblin',
     make(s, opts) {
       const stats = RS.Config.ENEMIES.goblin;
+      const elite = !!(opts && opts.elite);
+      const hp = stats.hp * (elite ? 2 : 1);
+      const xp = stats.xp * (elite ? 2 : 1);
       return {
         type: 'goblin',
         x: opts.x,
         y: opts.y,
         vx: 0,
         vy: 0,
-        r: 10,
-        speed: stats.speed,
-        hp: stats.hp,
-        maxHp: stats.hp,
+        r: elite ? 16 : 14,
+        speed: elite ? stats.speed * 0.55 : stats.speed,
+        hp,
+        maxHp: hp,
         dmg: stats.damage,
-        xp: stats.xp,
-        jitter: Math.random() * Math.PI * 2
+        xp,
+        elite,
+        jitter: Math.random() * Math.PI * 2,
+        state: elite ? 'advance' : 'rush',
+        fatigue: 0,
+        windedTimer: 0,
+        restTimer: 0,
+        dirX: 0,
+        dirY: 0,
+        dirSet: false
       };
     },
     update(e, dt, s) {
-      e.jitter += dt * 6;
-      const dx = s.player.x - e.x, dy = s.player.y - e.y;
-      const h = Math.hypot(dx, dy) || 1;
-      const side = Math.sin(e.jitter) * 0.6;
-      e.vx = (dx / h) * e.speed + (-dy / h) * e.speed * 0.15 * side;
-      e.vy = (dy / h) * e.speed + (dx / h) * e.speed * 0.15 * side;
-      const len = Math.hypot(e.vx, e.vy) || 1;
-      const scale = e.speed / len;
-      e.vx *= scale;
-      e.vy *= scale;
-      e.x += e.vx * dt;
-      e.y += e.vy * dt;
+      if (e.elite) {
+        e.jitter += dt * 2;
+        const dx = s.player.x - e.x, dy = s.player.y - e.y;
+        const h = Math.hypot(dx, dy) || 1;
+        const spd = e.speed;
+        e.vx = (dx / h) * spd;
+        e.vy = (dy / h) * spd;
+        e.x += e.vx * dt;
+        e.y += e.vy * dt;
+        return;
+      }
+
+      if (e.state === 'rush') {
+        e.jitter += dt * 6;
+        if (!e.dirSet) {
+          const dx = s.player.x - e.x, dy = s.player.y - e.y;
+          const h = Math.hypot(dx, dy) || 1;
+          e.dirX = dx / h;
+          e.dirY = dy / h;
+          e.dirSet = true;
+        }
+        const sway = Math.sin(e.jitter) * 0.2;
+        const perpX = -e.dirY, perpY = e.dirX;
+        e.vx = (e.dirX + perpX * sway) * e.speed;
+        e.vy = (e.dirY + perpY * sway) * e.speed;
+        e.x += e.vx * dt;
+        e.y += e.vy * dt;
+        const px = s.player.x, py = s.player.y;
+        if ((px - e.x) * e.dirX + (py - e.y) * e.dirY < -25) {
+          e.state = 'rest';
+          e.restTimer = 1.4;
+          e.dirSet = false;
+        }
+      } else if (e.state === 'rest') {
+        e.jitter += dt * 3;
+        e.vx = e.vy = 0;
+        e.restTimer -= dt;
+        if (e.restTimer <= 0) e.state = 'rush';
+      }
     },
     draw(e, ctx) {
       ctx.save();
       ctx.fillStyle = 'rgba(10,20,10,0.45)';
+      const sway = Math.sin(e.jitter * 0.6) * 0.4;
       ctx.beginPath();
-      ctx.ellipse(e.x, e.y + 7, 9, 3.5, 0, 0, Math.PI * 2);
+      ctx.ellipse(e.x + sway, e.y + 6, e.elite ? 11 : 9, e.elite ? 3.8 : 3.2, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-      drawSpriteGoblin(ctx, e.x, e.y - 2, 0.9);
+      const bob = (!e.elite && e.state === 'rest') ? 0.6 * Math.sin(e.jitter * 1.3) : 0;
+      const scale = e.elite ? 1.6 : 1.4;
+      drawSpriteGoblin(ctx, e.x + sway, e.y - 2 + bob, scale);
     }
   });
 
@@ -785,6 +826,7 @@
       const apply = Math.min(s.leechPool, L * dt, s.player.maxHearts - s.player.hearts);
       s.player.hearts += apply;
       s.leechPool -= apply;
+      s.player.hearts = Math.min(s.player.maxHearts, Math.round(s.player.hearts * 4) / 4);
     },
     spawnAtEdge(s) {
       const { W, H } = RS.Config;
@@ -825,13 +867,31 @@
           s.batTimer = Math.max(minP * surgeFactor, (base - ramp - surgeBonus) * surgeFactor);
         }
       }
+      if (s.elapsed >= RS.Config.BALANCE.GOBLIN_START_S && !s.goblinAmbushDone) {
+        const ringCount = 36;
+        const radius = 440;
+        const margin = radius + 16;
+        const cx = RS.Util.clamp(s.player.x, margin, RS.Config.MAP - margin);
+        const cy = RS.Util.clamp(s.player.y, margin, RS.Config.MAP - margin);
+        for (let g = 0; g < ringCount; g++) {
+          const ang = (Math.PI * 2 * g) / ringCount;
+          const gx = RS.Util.clamp(cx + Math.cos(ang) * radius, 14, RS.Config.MAP - 14);
+          const gy = RS.Util.clamp(cy + Math.sin(ang) * radius, 14, RS.Config.MAP - 14);
+          s.enemies.push(RS.Registry.Enemies.goblin.make(s, { x: gx, y: gy, elite: true }));
+        }
+        s.goblinAmbushDone = true;
+        s.goblinTimer = RS.Config.BALANCE.GOBLIN_BASE_PERIOD_S * 0.4;
+      }
       if (s.elapsed >= RS.Config.BALANCE.GOBLIN_START_S) {
         s.goblinTimer -= dt;
         const base = RS.Config.BALANCE.GOBLIN_BASE_PERIOD_S;
         const minP = RS.Config.BALANCE.GOBLIN_MIN_PERIOD_S;
         if (s.goblinTimer <= 0) {
           const p = this.spawnAtEdge(s);
-          const count = 3 + Math.min(4, Math.floor((s.elapsed - RS.Config.BALANCE.GOBLIN_START_S) / 120));
+          let count = 4 + Math.min(5, Math.floor((s.elapsed - RS.Config.BALANCE.GOBLIN_START_S) / 90));
+          if (s.elapsed >= RS.Config.BALANCE.GOBLIN_START_S + 60) count += 2;
+          if (s.elapsed >= 360) count += 4;
+          if (s.elapsed >= 420) count += 3;
           for (let g = 0; g < count; g++) {
             const ang = Math.random() * Math.PI * 2;
             const dist = 18 + Math.random() * 32;
@@ -839,8 +899,9 @@
             const gy = RS.Util.clamp(p.y + Math.sin(ang) * dist, 10, RS.Config.MAP - 10);
             s.enemies.push(RS.Registry.Enemies.goblin.make(s, { x: gx, y: gy }));
           }
-          const ramp = Math.min(5, Math.max(0, (s.elapsed - RS.Config.BALANCE.GOBLIN_START_S) / 150 * 2));
-          s.goblinTimer = Math.max(minP, base - ramp);
+          const ramp = Math.min(6, Math.max(0, (s.elapsed - RS.Config.BALANCE.GOBLIN_START_S) / 120 * 2));
+          const accel = s.elapsed >= 360 ? 0.5 : 1;
+          s.goblinTimer = Math.max(minP * accel, (base - ramp) * accel);
         }
       }
     },
@@ -906,10 +967,11 @@
         const t = s.trails[i];
         t.t += dt;
         if (t.t >= t.life) { s.trails.splice(i, 1); continue; }
+        const wakeMult = 0.5 + 0.1 * Math.max(0, (s.wake.level || 0) - 1);
         for (let j = s.enemies.length - 1; j >= 0; j--) {
           const e = s.enemies[j];
           if (RS.Util.dist2(t.x, t.y, e.x, e.y) < (t.r + e.r) ** 2) {
-            RS.Systems.applyDamage(e, RS.Systems.effDamage(s.spinner.dmg * 0.5, s) * dt * 8, s);
+            RS.Systems.applyDamage(e, RS.Systems.effDamage(s.spinner.dmg * wakeMult, s) * dt * 8, s);
           }
         }
       }
@@ -922,7 +984,8 @@
           const volleys = s.bow.arrows;
           for (let k = 0; k < volleys; k++) {
             const jitter = (k - (volleys - 1) / 2) * 0.08;
-            const dx = target.x - s.player.x, dy = target.y - s.player.y, ang = Math.atan2(dy, dx) + jitter;
+            const dx = target.x - s.player.x, dy = target.y - s.player.y;
+            const ang = Math.atan2(dy, dx) + jitter;
             s.projs.push({
               x: s.player.x, y: s.player.y,
               vx: Math.cos(ang) * s.bow.speed,
@@ -940,6 +1003,7 @@
         pr.x += pr.vx * dt;
         pr.y += pr.vy * dt;
         pr.life -= dt;
+        if (pr.x < 0 || pr.y < 0 || pr.x > RS.Config.MAP || pr.y > RS.Config.MAP) { s.projs.splice(i, 1); continue; }
         for (let j = s.enemies.length - 1; j >= 0; j--) {
           const e = s.enemies[j];
           if (pr.hitSet.has(e)) continue;
@@ -1067,7 +1131,7 @@
           }
           const xpValue = (typeof e.xp === 'number') ? e.xp : 4 + RS.Util.rnd(1, 4);
           s.orbs.push({ x: e.x, y: e.y, v: xpValue });
-          if (Math.random() < 0.001) s.heals.push({ x: e.x, y: e.y, phase: 0 });
+          if (Math.random() < 0.005) s.heals.push({ x: e.x, y: e.y, phase: 0 });
           s.enemies.splice(i, 1);
           s.stats.kills++;
         }
@@ -1093,7 +1157,7 @@
       s.enemies.length = s.projs.length = s.orbs.length = s.heals.length = s.bombs.length = s.placedBombs.length = s.bolts.length = s.trails.length = 0;
       s.spinner.rings.length = 0;
       s.spinner.dmg = 12;
-      Object.assign(s.bow,   { cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 1 });
+      Object.assign(s.bow,   { cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 });
       Object.assign(s.bomb,  { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, radius: 140, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 });
       Object.assign(s.storm, { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 });
       for (const k in s.levels) s.levels[k] = 0;
@@ -1107,6 +1171,7 @@
       s.spinnerAcc = new WeakMap();
       s.batTimer = RS.Config.BALANCE.BAT_BASE_PERIOD_S;
       s.goblinTimer = RS.Config.BALANCE.GOBLIN_BASE_PERIOD_S;
+      s.goblinAmbushDone = false;
       RS.State.mode = 'playing';
       RS.UI.uiButtons = [];
       RS.UI.showLevelModal(false);
@@ -1234,9 +1299,16 @@
     },
     drawHearts(x, y, hearts, maxHearts) {
       const full = Math.floor(hearts);
-      const hasHalf = (hearts - full) > 0 ? 1 : 0;
+      const frac = hearts - full;
+      const showExtraFull = frac >= 0.75;
+      const showHalf = !showExtraFull && frac >= 0.25;
       for (let i = 0; i < maxHearts; i++) {
-        const state = (i < full) ? 1 : (i === full && hasHalf ? 0.5 : 0);
+        let state = 0;
+        if (i < full) state = 1;
+        else if (i === full) {
+          if (showExtraFull) state = 1;
+          else if (showHalf) state = 0.5;
+        }
         this.heart(x + i * 24, y, state);
       }
     },
