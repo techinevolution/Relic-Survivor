@@ -11,9 +11,13 @@
   - Stage-based progression with handcrafted encounters.
   - Weapons appear in-world as pickups; first-time pickup unlocks them globally.
   - Introduce simple map events (tutorial beats, minibosses) to showcase new gear.
+  - Stage-select map with illustrated tiles (e.g., “Grasslands”) inspired by SMB3; unlocks flow left-to-right as stages clear.
+  - Tutorial stage: quiet field, no spawns until the boomerang pickup; pickup triggers pop-up (“You got the Boomerang!”) and a character quip balloon.
+  - Subsequent stages gate progress behind survival/kill objectives; first boss drops the bow unlock.
 - **Arcade Mode**
   - Pure survival, all previously unlocked gear available.
   - Leaderboard-ready once persistence exists.
+  - Unlock condition: collect every weapon in Adventure (temporarily open for development/testing builds).
 
 ## Progression & Persistence
 - Add a save record (localStorage or exportable JSON) storing:

@@ -116,6 +116,14 @@
       slimeMini: { hp: 5, speed: 90, damage: 6, xp: 2 },
       bat: { hp: 12, speed: 120, damage: 12, xp: 6 },
       goblin: { hp: 120, speed: 160, damage: 20, xp: 18 }
+    },
+    WEAPONS: {
+      sword: { name: 'Brambleblade', baseDamage: 20, baseCooldown: 1.15, type: 'melee', desc: 'Arc slash that widens with practice.' },
+      boomerang: { name: 'Skyhook Loop', baseDamage: 16, baseCooldown: 0.75, type: 'projectile', desc: 'Returning throw that gathers spoils.' },
+      bow: { name: 'Voyager Bow', baseDamage: 15, baseCooldown: 1.35, type: 'projectile', desc: 'Volley of arrows that grows in number.' },
+      storm: { name: 'Skybrand Sigil', baseDamage: 34, baseCooldown: 3.0, type: 'chain', desc: 'Lightning that leaps across foes.' },
+      bomb: { name: 'Bombbloom', baseDamage: 50, baseCooldown: 6.0, type: 'explosive', desc: 'Trailing seeds that erupt after a fuse.' },
+      spinner: { name: 'Forest Spinner', baseDamage: 12, baseCooldown: 0, type: 'orbit', desc: 'Protective blades circling the survivor.' }
     }
   };
 
@@ -159,6 +167,9 @@
     paused: false,
     gameOver: false,
     elapsed: 0,
+    gameplayMode: 'arcade',
+    codexFilter: 'monsters',
+    codexSelection: 0,
     stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, swordSwings: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 },
     player: {
       x: RS.Config.MAP / 2, y: RS.Config.MAP / 2, vx: 0, vy: 0, r: 14,
@@ -169,7 +180,7 @@
       level: 1, xp: 0, xpTo: 20, xpGain: 1,
       facing: 0
     },
-    levels: {},
+    levels: { boomerang: 1 },
     spinner: { dmg: 12, rings: [] },
     bow: { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 },
     storm: { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 },
@@ -448,6 +459,78 @@
     }
   ];
   RS.Registry.Bestiary = Bestiary;
+  function drawWeaponIcon(ctx, x, y, emoji, size = 64) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.font = `${size}px ui-sans-serif,system-ui`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, 0, 0);
+    ctx.restore();
+  }
+  const CodexWeapons = [
+    {
+      id: 'sword',
+      name: RS.Config.WEAPONS.sword.name,
+      blurb: RS.Config.WEAPONS.sword.desc,
+      draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🗡️', 72); },
+      stats() {
+        const cfg = RS.Config.WEAPONS.sword;
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+      }
+    },
+    {
+      id: 'boomerang',
+      name: RS.Config.WEAPONS.boomerang.name,
+      blurb: RS.Config.WEAPONS.boomerang.desc,
+      draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🪃', 72); },
+      stats() {
+        const cfg = RS.Config.WEAPONS.boomerang;
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+      }
+    },
+    {
+      id: 'bow',
+      name: RS.Config.WEAPONS.bow.name,
+      blurb: RS.Config.WEAPONS.bow.desc,
+      draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🏹', 72); },
+      stats() {
+        const cfg = RS.Config.WEAPONS.bow;
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+      }
+    },
+    {
+      id: 'storm',
+      name: RS.Config.WEAPONS.storm.name,
+      blurb: RS.Config.WEAPONS.storm.desc,
+      draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '⚡', 72); },
+      stats() {
+        const cfg = RS.Config.WEAPONS.storm;
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+      }
+    },
+    {
+      id: 'bomb',
+      name: RS.Config.WEAPONS.bomb.name,
+      blurb: RS.Config.WEAPONS.bomb.desc,
+      draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '💣', 72); },
+      stats() {
+        const cfg = RS.Config.WEAPONS.bomb;
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+      }
+    },
+    {
+      id: 'spinner',
+      name: RS.Config.WEAPONS.spinner.name,
+      blurb: RS.Config.WEAPONS.spinner.desc,
+      draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🌀', 72); },
+      stats() {
+        const cfg = RS.Config.WEAPONS.spinner;
+        return { Damage: cfg.baseDamage, Cooldown: 'N/A', Type: cfg.type };
+      }
+    }
+  ];
+  RS.Registry.Codex = { monsters: Bestiary, weapons: CodexWeapons };
 
   // =====================================
   // Relics
@@ -484,8 +567,13 @@
       desc: '+1 arrow; volley cooldown ↓',
       max: 5,
       onPick(s) {
-        if (!s.bow.enabled) { s.bow.enabled = true; s.bow.timer = 0.2; }
-        s.bow.arrows += 1;
+        if (!s.bow.enabled) {
+          s.bow.enabled = true;
+          s.bow.timer = 0.2;
+          s.bow.arrows = 1;
+        } else {
+          s.bow.arrows += 1;
+        }
         s.bow.cooldown = Math.max(0.55, s.bow.cooldown - 0.10);
       }
     },
@@ -984,46 +1072,18 @@
       }
       const dirX = Math.cos(angle);
       const dirY = Math.sin(angle);
-      const rightX = -dirY;
-      const rightY = dirX;
-      let radius = data.range / 2;
-      let arcDir = Math.random() < 0.5 ? -1 : 1;
-      if (target) {
-        const dx = target.x - s.player.x;
-        const dy = target.y - s.player.y;
-        const forwardDist = Math.max(0, dx * dirX + dy * dirY);
-        const sidewaysDist = dx * rightX + dy * rightY;
-        const baseRadius = forwardDist * 0.6;
-        if (target && forwardDist < 60) {
-          radius = Math.max(70, Math.min(data.range / 2, Math.max(Math.abs(sidewaysDist), 100)));
-        } else {
-          radius = Math.max(70, Math.min(data.range / 2, Math.max(Math.abs(sidewaysDist), baseRadius)));
-        }
-        if (Math.abs(sidewaysDist) > 8) {
-          arcDir = sidewaysDist > 0 ? 1 : -1;
-        }
-      }
-      const centerX = s.player.x + dirX * radius;
-      const centerY = s.player.y + dirY * radius;
-      const startPhase = -Math.PI / 2;
-      const returnPhase = startPhase + Math.PI * 1.15;
       s.boomerangs.push({
         x: s.player.x,
         y: s.player.y,
-        prevX: s.player.x,
-        prevY: s.player.y,
-        centerX,
-        centerY,
-        forwardX: dirX,
-        forwardY: dirY,
-        rightX,
-        rightY,
-        radius,
-        phase: startPhase,
-        endPhase: startPhase + Math.PI * 2,
-        returnPhase,
-        angularSpeed: data.speed / Math.max(radius, 1),
-        arcDir,
+        vx: dirX,
+        vy: dirY,
+        speed: data.speed,
+        range: data.range,
+        distance: 0,
+        stage: 'out',
+        arcDir: Math.random() < 0.5 ? -1 : 1,
+        orbitAngle: 0,
+        orbitRadius: 0,
         carryXp: 0,
         carryHeals: 0,
         heading: angle,
@@ -1031,7 +1091,6 @@
         spinSpeed: (Math.random() < 0.5 ? -1 : 1) * 18,
         elite: false,
         hasLeftPlayer: false,
-        returning: false,
         born: s.elapsed
       });
       s.stats.boomerangsThrown++;
@@ -1043,42 +1102,41 @@
         this.spawnBoomerang(s);
         data.timer = data.cooldown;
       }
+      const startReturn = (b) => {
+        if (b.stage === 'return') return;
+        b.stage = 'return';
+        const dx = b.x - s.player.x;
+        const dy = b.y - s.player.y;
+        b.orbitRadius = Math.max(48, Math.hypot(dx, dy));
+        b.orbitAngle = Math.atan2(dy, dx);
+        if (!b.hasLeftPlayer) b.hasLeftPlayer = true;
+      };
       for (let i = s.boomerangs.length - 1; i >= 0; i--) {
         const b = s.boomerangs[i];
         const prevX = b.x;
         const prevY = b.y;
 
-        if (!b.returning) {
-          b.phase += b.angularSpeed * dt;
-          if (b.phase >= b.returnPhase) b.returning = true;
-          if (b.phase > b.endPhase) {
-            b.phase = b.endPhase;
-            b.returning = true;
-          }
-          if (!b.returning) {
-            const cos = Math.cos(b.phase) * b.radius * b.arcDir;
-            const sin = Math.sin(b.phase) * b.radius;
-            b.x = b.centerX + b.rightX * cos + b.forwardX * sin;
-            b.y = b.centerY + b.rightY * cos + b.forwardY * sin;
-            const dxOut = b.x - prevX;
-            const dyOut = b.y - prevY;
-            b.heading = Math.atan2(dyOut, dxOut);
-          }
+        if (b.stage === 'out') {
+          const step = b.speed * dt;
+          b.x += b.vx * step;
+          b.y += b.vy * step;
+          b.distance += step;
+          b.heading = Math.atan2(b.vy, b.vx);
+        } else {
+          const prevRadius = b.orbitRadius || Math.hypot(prevX - s.player.x, prevY - s.player.y);
+          const shrink = b.speed * 0.7 * dt;
+          b.orbitRadius = Math.max(12, prevRadius - shrink);
+          const angSpeed = b.speed / Math.max(prevRadius, 40);
+          b.orbitAngle += b.arcDir * angSpeed * dt * 1.4;
+          b.x = s.player.x + Math.cos(b.orbitAngle) * b.orbitRadius;
+          b.y = s.player.y + Math.sin(b.orbitAngle) * b.orbitRadius;
         }
-
-        if (b.returning) {
-          const dx = s.player.x - b.x;
-        const dy = s.player.y - b.y;
-        const dist = Math.hypot(dx, dy) || 1;
-        const speed = data.speed * 1.35;
-        b.x += (dx / dist) * speed * dt;
-        b.y += (dy / dist) * speed * dt;
-        b.heading = Math.atan2(dy, dx);
-      }
 
         const dxStep = b.x - prevX;
         const dyStep = b.y - prevY;
         if (!Number.isFinite(b.heading) && (dxStep || dyStep)) {
+          b.heading = Math.atan2(dyStep, dxStep);
+        } else if (b.stage === 'return') {
           b.heading = Math.atan2(dyStep, dxStep);
         }
         b.spinAngle = (b.spinAngle || 0) + (b.spinSpeed || 0) * dt;
@@ -1087,7 +1145,8 @@
           const e = s.enemies[j];
           if (RS.Util.dist2(b.x, b.y, e.x, e.y) < (12 + e.r) ** 2) {
             RS.Systems.applyDamage(e, RS.Systems.effDamage(data.damage, s), s);
-            if (!b.returning) b.returning = true;
+            startReturn(b);
+            break;
           }
         }
 
@@ -1108,8 +1167,8 @@
 
         const distToPlayer2 = RS.Util.dist2(b.x, b.y, s.player.x, s.player.y);
         if (!b.hasLeftPlayer && distToPlayer2 > (s.player.r + 18) ** 2) b.hasLeftPlayer = true;
-
-        const closeEnough = b.returning && b.hasLeftPlayer && distToPlayer2 < (s.player.r + 10) ** 2;
+        if (b.stage === 'out' && b.distance >= data.range) startReturn(b);
+        const closeEnough = b.stage === 'return' && b.hasLeftPlayer && distToPlayer2 < (s.player.r + 10) ** 2;
         const timedOut = (s.elapsed - b.born) > 6;
         if (closeEnough || timedOut) {
           b.x = s.player.x;
@@ -1412,6 +1471,7 @@
       Object.assign(s.boomerang, { count: 1, cooldown: 0.75, timer: 0, speed: 460, range: 320, damage: 16 });
       s.boomerangAngle = 0;
       for (const k in s.levels) s.levels[k] = 0;
+      s.levels.boomerang = 1;
       Object.assign(s.stats, { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, swordSwings: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 });
       s.atkSpeed = 1.0;
       s.leechRate = 0.0;
@@ -1465,10 +1525,14 @@
       (RS.State.currentChoices || []).forEach(c => {
         const btn = document.createElement('button');
         btn.className = 'choice';
+        const icon = RS.Registry.ICON[c.id] || '•';
         btn.innerHTML = `
-          <div style="color:#e2e8f0;font-weight:600">${c.name}</div>
-          <div style="color:#94a3b8;font-size:13px">${c.desc}</div>
-          <div style="color:#94a3b8;font-size:12px;margin-top:4px">Rank ${(RS.State.levels[c.id] || 0)} / ${c.max}</div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+            <div style="font-size:32px;line-height:1">${icon}</div>
+            <div style="color:#e2e8f0;font-weight:600;text-align:center">${c.name}</div>
+            <div style="color:#94a3b8;font-size:13px;text-align:center">${c.desc}</div>
+            <div style="color:#94a3b8;font-size:12px">Rank ${(RS.State.levels[c.id] || 0)} / ${c.max}</div>
+          </div>
         `;
         btn.onclick = () => RS.UI.takeUpgrade(c);
         choicesEl.appendChild(btn);
@@ -1800,16 +1864,30 @@
         ctx.save();
         ctx.translate(b.x, b.y);
         ctx.rotate((b.heading || 0) + (b.spinAngle || 0));
-        ctx.fillStyle = '#fbbf24';
+        ctx.fillStyle = '#f59e0b';
         ctx.beginPath();
-        ctx.moveTo(-9, -2);
-        ctx.lineTo(-3, -7);
-        ctx.lineTo(9, 2);
-        ctx.lineTo(3, 7);
+        ctx.moveTo(-12, -4);
+        ctx.quadraticCurveTo(-3, -12, 10, -3);
+        ctx.lineTo(7, 4);
+        ctx.quadraticCurveTo(0, 2, -7, 6);
         ctx.closePath();
         ctx.fill();
-        ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 1.4;
+        ctx.strokeStyle = '#b45309';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        ctx.fillStyle = '#fde68a';
+        ctx.beginPath();
+        ctx.moveTo(-9, -2);
+        ctx.quadraticCurveTo(-2, -6, 7, -1);
+        ctx.lineTo(4, 2);
+        ctx.quadraticCurveTo(-1, 1, -4, 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.45)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-7, -1);
+        ctx.quadraticCurveTo(-1, -4, 5, -0.5);
         ctx.stroke();
         ctx.restore();
       }
@@ -1856,8 +1934,8 @@
     },
     pause() {
       const { W } = RS.Config, s = RS.State;
-      const w = 520, h = 260, x = W / 2 - w / 2, y = RS.Config.H / 2 - h / 2;
-      const btnW = 120, btnH = 36, gap = 16, totalW = btnW * 3 + gap * 2, startX = W / 2 - totalW / 2, btnY = y - 92;
+      const w = 560, h = 320, x = W / 2 - w / 2, y = RS.Config.H / 2 - h / 2;
+      const btnW = 120, btnH = 36, gap = 16, totalW = btnW * 3 + gap * 2, startX = W / 2 - totalW / 2, btnY = y - 108;
       RS.UI.uiButtons = [];
       RS.UI.addBtn(startX, startX === startX ? btnY : btnY, btnW, btnH, 'Resume', () => { RS.State.paused = false; });
       RS.UI.addBtn(startX + btnW + gap, btnY, btnW, btnH, 'Restart', () => { RS.Systems.restart(RS.State); });
@@ -1871,11 +1949,37 @@
       ctx.font = '12px ui-sans-serif,system-ui';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText(`Time ${RS.Util.fmtTime(s.elapsed)}`, W / 2, y + 46);
-      const taken = Object.values(RS.Registry.Relics).filter(u => (s.levels[u.id] || 0) > 0);
+      const weaponStats = [
+        { label: 'Sword', current: s.sword.dmg, base: RS.Config.WEAPONS.sword.baseDamage, enabled: s.sword.enabled },
+        { label: 'Boomerang', current: s.boomerang.damage, base: RS.Config.WEAPONS.boomerang.baseDamage, enabled: true },
+        { label: 'Bow', current: s.bow.dmg, base: RS.Config.WEAPONS.bow.baseDamage, enabled: s.bow.enabled },
+        { label: 'Skybrand', current: s.storm.dmg, base: RS.Config.WEAPONS.storm.baseDamage, enabled: s.storm.enabled },
+        { label: 'Bombbloom', current: s.bomb.dmg, base: RS.Config.WEAPONS.bomb.baseDamage, enabled: s.bomb.enabled },
+        { label: 'Spinner', current: s.spinner.dmg, base: RS.Config.WEAPONS.spinner.baseDamage, enabled: s.spinner.rings.length > 0 }
+      ];
+      const wx = x + 18, wy = y + 64;
       ctx.textAlign = 'left';
-      const gx = x + 18, gy = y + 64;
+      ctx.font = '14px ui-sans-serif,system-ui';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText('Weapons', wx, wy);
+      ctx.font = '13px ui-sans-serif,system-ui';
+      weaponStats.forEach((wStat, i) => {
+        const lineY = wy + 22 + i * 20;
+        const current = Math.round(wStat.current);
+        const diff = Math.round(wStat.current - wStat.base);
+        const diffText = diff === 0 ? '(+0)' : `(${diff > 0 ? '+' : ''}${diff})`;
+        ctx.fillStyle = wStat.enabled ? '#e2e8f0' : '#6b7280';
+        ctx.fillText(`${wStat.label} DMG: ${current} ${diffText}`, wx, lineY);
+      });
+      const taken = Object.values(RS.Registry.Relics).filter(u => (s.levels[u.id] || 0) > 0);
+      const gy = wy + 22 + weaponStats.length * 20 + 26;
+      const gx = x + 18;
       const colW = 240, rowH = 28, cols = 2;
-      if (!taken.length) { ctx.fillStyle = '#94a3b8'; ctx.fillText('No relics chosen yet.', x + 18, y + 72); }
+      if (!taken.length) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '13px ui-sans-serif,system-ui';
+        ctx.fillText('No relics chosen yet.', gx, gy);
+      }
       taken.forEach((u, i) => {
         const cx = gx + (i % cols) * colW, cy = gy + Math.floor(i / cols) * rowH;
         ctx.fillStyle = '#0f172a'; ctx.fillRect(cx, cy, 220, 22);
@@ -1979,22 +2083,23 @@
       const bw = panelW - 40, bh = 38;
       RS.UI.uiButtons = [];
       const menuButtons = [
-        { label: 'Start', action: () => { RS.Systems.restart(RS.State); } },
+        { label: 'Play', action: () => { RS.State.mode = 'playSelect'; } },
+        { label: 'Codex', action: () => { RS.State.mode = 'codex'; RS.State.codexSelection = 0; RS.State.codexFilter = 'monsters'; } },
         { label: 'How to Play', action: () => { RS.State.mode = 'how'; } },
-        { label: 'Bestiary', action: () => { RS.State.mode = 'bestiary'; } },
         { label: 'Options', action: () => { RS.State.mode = 'options'; } },
         { label: 'Credits', action: () => { RS.State.mode = 'credits'; } }
       ];
-      const overlayOpen = [ 'how', 'options', 'credits', 'bestiary' ].includes(s.mode);
+      const overlayOpen = [ 'how', 'options', 'credits', 'codex', 'playSelect' ].includes(s.mode);
       menuButtons.forEach((btn, i) => {
         RS.UI.addBtn(bx, by + i * (bh + 10), bw, bh, btn.label, btn.action, { passive: overlayOpen });
       });
       if (overlayOpen) {
-        const isBestiary = s.mode === 'bestiary';
-        const boxW = isBestiary ? 640 : 540;
-        const boxH = isBestiary ? 440 : 260;
+        const isCodex = s.mode === 'codex';
+        const isPlaySelect = s.mode === 'playSelect';
+        const boxW = isCodex ? 760 : (isPlaySelect ? 520 : 540);
+        const boxH = isCodex ? 480 : (isPlaySelect ? 300 : 260);
         const x = W / 2 - boxW / 2, y = H / 2 - boxH / 2;
-        ctx.fillStyle = isBestiary ? 'rgba(12,17,32,0.9)' : 'rgba(0,0,0,0.7)';
+        ctx.fillStyle = isCodex ? 'rgba(12,17,32,0.9)' : 'rgba(0,0,0,0.7)';
         ctx.fillRect(x, y, boxW, boxH);
         ctx.fillStyle = '#e2e8f0';
         ctx.font = '18px ui-sans-serif,system-ui';
@@ -2024,36 +2129,140 @@
           ctx.fillStyle = '#94a3b8';
           ctx.fillText('Sprites/fonts: system UI • Use CC0 assets for custom skins.', W / 2, y + 110);
         }
-        if (isBestiary) {
-          ctx.fillText('Bestiary', W / 2, y + 32);
+        if (isPlaySelect) {
+          ctx.fillText('Select a Mode', W / 2, y + 34);
           ctx.font = '14px ui-sans-serif,system-ui';
           ctx.fillStyle = '#94a3b8';
-          ctx.fillText('Scout threats before they reach camp.', W / 2, y + 60);
-          const creatures = RS.Registry.Bestiary;
-          const cols = 2, cardW = 260, cardH = 104, gap = 18;
-          const startX = x + 30;
-          const startY = y + 88;
+          ctx.fillText('Adventure will unlock Arcade progression later; both open for testing now.', W / 2, y + 60);
+          const btnWidth = boxW - 120;
+          const btnHeight = 56;
+          const btnStartY = y + 100;
+          RS.Render.drawButton(x + (boxW - btnWidth) / 2, btnStartY, btnWidth, btnHeight, 'Adventure Mode', false);
+          RS.UI.uiButtons.push({
+            x: x + (boxW - btnWidth) / 2,
+            y: btnStartY,
+            w: btnWidth,
+            h: btnHeight,
+            label: 'Adventure Mode',
+            action: () => {
+              RS.State.gameplayMode = 'adventure';
+              RS.Systems.restart(RS.State);
+            }
+          });
+          const arcadeY = btnStartY + btnHeight + 24;
+          const arcadeLocked = false;
+          RS.Render.drawButton(x + (boxW - btnWidth) / 2, arcadeY, btnWidth, btnHeight, 'Arcade Mode', arcadeLocked);
+          RS.UI.uiButtons.push({
+            x: x + (boxW - btnWidth) / 2,
+            y: arcadeY,
+            w: btnWidth,
+            h: btnHeight,
+            label: 'Arcade Mode',
+            action: () => {
+              if (arcadeLocked) return;
+              RS.State.gameplayMode = 'arcade';
+              RS.Systems.restart(RS.State);
+            }
+          });
+        }
+        if (isCodex) {
+          ctx.fillText('Codex', W / 2, y + 32);
+          ctx.font = '14px ui-sans-serif,system-ui';
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText('Review foes and gear before the next run.', W / 2, y + 58);
+          const filters = [
+            { id: 'monsters', label: 'Monsters' },
+            { id: 'weapons', label: 'Weapons' }
+          ];
+          const filterY = y + 80;
+          const filterW = 120;
+          filters.forEach((f, idx) => {
+            const fx = x + 40 + idx * (filterW + 10);
+            const active = RS.State.codexFilter === f.id;
+            RS.Render.drawButton(fx, filterY, filterW, 32, f.label, !active);
+            RS.UI.uiButtons.push({
+              x: fx,
+              y: filterY,
+              w: filterW,
+              h: 32,
+              label: f.label,
+              action: () => {
+                RS.State.codexFilter = f.id;
+                RS.State.codexSelection = 0;
+              }
+            });
+          });
+          const entries = RS.State.codexFilter === 'weapons' ? RS.Registry.Codex.weapons : RS.Registry.Codex.monsters;
+          if (RS.State.codexSelection >= entries.length) RS.State.codexSelection = entries.length ? 0 : RS.State.codexSelection;
+          const listX = x + 40;
+          const listY = filterY + 48;
+          const listW = 220;
+          const rowH = 44;
           ctx.textAlign = 'left';
-          creatures.forEach((m, i) => {
-            const col = i % cols;
-            const row = (i / cols) | 0;
-            const cardX = startX + col * (cardW + gap);
-            const cardY = startY + row * (cardH + gap);
-            ctx.fillStyle = 'rgba(17,24,39,0.85)';
-            ctx.fillRect(cardX, cardY, cardW, cardH);
-            ctx.strokeStyle = 'rgba(148,163,184,0.4)';
-            ctx.strokeRect(cardX, cardY, cardW, cardH);
-            m.draw(ctx, cardX + 52, cardY + cardH / 2 - 4, 3);
+          entries.forEach((entry, i) => {
+            const rowY = listY + i * (rowH + 10);
+            const selected = RS.State.codexSelection === i;
+            ctx.fillStyle = selected ? 'rgba(34,197,94,0.25)' : 'rgba(15,23,42,0.85)';
+            ctx.fillRect(listX, rowY, listW, rowH);
+            ctx.strokeStyle = selected ? '#22c55e' : 'rgba(148,163,184,0.4)';
+            ctx.strokeRect(listX, rowY, listW, rowH);
             ctx.fillStyle = '#e2e8f0';
-            ctx.font = '16px ui-sans-serif,system-ui';
-            ctx.fillText(m.name, cardX + 96, cardY + 28);
+            ctx.font = '15px ui-sans-serif,system-ui';
+            ctx.fillText(entry.name, listX + 16, rowY + 26);
+            RS.UI.uiButtons.push({
+              x: listX,
+              y: rowY,
+              w: listW,
+              h: rowH,
+              label: entry.name,
+              action: () => { RS.State.codexSelection = i; }
+            });
+          });
+          const detailX = listX + listW + 40;
+          const detailY = filterY + 40;
+          const detailW = boxW - (detailX - x) - 30;
+          ctx.fillStyle = 'rgba(15,23,42,0.65)';
+          ctx.fillRect(detailX, detailY, detailW, boxH - (detailY - y) - 60);
+          ctx.strokeStyle = 'rgba(148,163,184,0.35)';
+          ctx.strokeRect(detailX, detailY, detailW, boxH - (detailY - y) - 60);
+          if (entries.length) {
+            const entry = entries[RS.State.codexSelection];
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(detailX + 20, detailY + 20, 160, 160);
+            ctx.closePath();
+            ctx.clip();
+            const drawX = detailX + 100;
+            const drawY = detailY + 100;
+            if (entry.draw) entry.draw(ctx, drawX, drawY, 3);
+            ctx.restore();
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '18px ui-sans-serif,system-ui';
+            ctx.fillText(entry.name, detailX + 200, detailY + 48);
             ctx.fillStyle = '#94a3b8';
             ctx.font = '13px ui-sans-serif,system-ui';
-            ctx.fillText(m.blurb, cardX + 96, cardY + 52);
-            ctx.fillStyle = 'rgba(148,163,184,0.5)';
-            ctx.font = '12px ui-sans-serif,system-ui';
-            ctx.fillText('Not yet deployed in battle.', cardX + 96, cardY + 76);
-          });
+            ctx.textAlign = 'left';
+            ctx.fillText(entry.blurb || '', detailX + 200, detailY + 72);
+            const statStartY = detailY + 110;
+            ctx.fillStyle = '#cbd5f5';
+            ctx.font = '13px ui-sans-serif,system-ui';
+            let statsObj;
+            if (RS.State.codexFilter === 'monsters') {
+              const cfg = RS.Config.ENEMIES[entry.id] || {};
+              statsObj = {
+                HP: cfg.hp ?? '?',
+                Speed: cfg.speed ?? '?',
+                Damage: cfg.damage ?? '?',
+                XP: cfg.xp ?? '?'
+              };
+            } else {
+              statsObj = entry.stats ? entry.stats() : {};
+            }
+            const statKeys = Object.keys(statsObj || {});
+            statKeys.forEach((key, idx) => {
+              ctx.fillText(`${key}: ${statsObj[key]}`, detailX + 200, statStartY + idx * 20);
+            });
+          }
         }
         RS.UI.addBtn(W / 2 - 60, y + boxH - 50, 120, 36, 'Back', () => { RS.State.mode = 'menu'; });
       }
@@ -2093,7 +2302,7 @@
 
   function draw() {
     const s = RS.State;
-    if ([ 'attract', 'menu', 'how', 'options', 'credits', 'bestiary' ].includes(s.mode)) { RS.Render.attract(); return; }
+    if ([ 'attract', 'menu', 'how', 'options', 'credits', 'codex', 'playSelect' ].includes(s.mode)) { RS.Render.attract(); return; }
     RS.Render.world();
     RS.Render.hud();
     RS.UI.uiButtons = [];
