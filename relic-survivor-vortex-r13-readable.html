@@ -159,7 +159,15 @@
     paused: false,
     gameOver: false,
     elapsed: 0,
-    stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 },
+<<<<<<< ours
+<<<<<<< ours
+    stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, swordSwings: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 },
+=======
+    stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, distance: 0, damageDealt: 0 },
+>>>>>>> theirs
+=======
+    stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, distance: 0, damageDealt: 0 },
+>>>>>>> theirs
     player: {
       x: RS.Config.MAP / 2, y: RS.Config.MAP / 2, vx: 0, vy: 0, r: 14,
       baseSpeed: 250,
@@ -172,6 +180,13 @@
     spinner: { dmg: 12, rings: [] },
     bow: { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 },
     storm: { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 },
+<<<<<<< ours
+<<<<<<< ours
+    sword: { enabled: false, timer: 0, cooldown: 1.15, dmg: 20, reach: 120, duration: 0.26, swings: [], angleSeed: 0 },
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
     bomb: { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, radius: 140, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 },
     wake: { enabled: false, level: 0, life: 0.22 },
     boomerang: { count: 1, cooldown: 0.75, timer: 0, speed: 460, range: 320, damage: 16 },
@@ -464,6 +479,24 @@
       }
     },
     {
+<<<<<<< ours
+<<<<<<< ours
+      id: 'sword',
+      name: 'Brambleblade',
+      desc: 'Arc slash damage & reach ↑; unlocks blade strikes',
+      max: 5,
+      onPick(s) {
+        if (!s.sword.enabled) { s.sword.enabled = true; s.sword.timer = 0.15; }
+        s.sword.dmg += 4;
+        s.sword.reach = Math.min(170, s.sword.reach + 6);
+        s.sword.cooldown = Math.max(0.55, s.sword.cooldown - 0.08);
+      }
+    },
+    {
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
       id: 'bow',
       name: 'Voyager Bow',
       desc: '+1 arrow; volley cooldown ↓',
@@ -924,7 +957,19 @@
       const up = k['w'] || k['arrowup'], down = k['s'] || k['arrowdown'], left = k['a'] || k['arrowleft'], right = k['d'] || k['arrowright'];
       let ax = 0, ay = 0;
       if (up) ay -= 1; if (down) ay += 1; if (left) ax -= 1; if (right) ax += 1;
+<<<<<<< ours
+<<<<<<< ours
+      const len = Math.hypot(ax, ay);
+      if (len > 0) {
+        ax /= len; ay /= len;
+        s.player.facing = Math.atan2(ay, ax);
+      } else { ax = 0; ay = 0; }
+=======
       const len = Math.hypot(ax, ay) || 1; ax /= len; ay /= len;
+>>>>>>> theirs
+=======
+      const len = Math.hypot(ax, ay) || 1; ax /= len; ay /= len;
+>>>>>>> theirs
       s.player.vx = ax * s.player.baseSpeed;
       s.player.vy = ay * s.player.baseSpeed;
       s.player.x = RS.Util.clamp(s.player.x + s.player.vx * dt, 0, RS.Config.MAP);
@@ -961,21 +1006,34 @@
       }
       const dirX = Math.cos(angle);
       const dirY = Math.sin(angle);
-      const curve = (Math.random() * 0.6 + 0.3) * (Math.random() < 0.5 ? -1 : 1);
+      const radius = data.range / 2;
+      const centerX = s.player.x + dirX * radius;
+      const centerY = s.player.y + dirY * radius;
+      const arcDir = Math.random() < 0.5 ? -1 : 1;
+      const rightX = -dirY;
+      const rightY = dirX;
+      const startPhase = -Math.PI / 2;
       s.boomerangs.push({
         x: s.player.x,
         y: s.player.y,
-        dirX,
-        dirY,
-        state: 'out',
-        curve,
-        life: 0,
-        maxDist: data.range,
+        prevX: s.player.x,
+        prevY: s.player.y,
+        centerX,
+        centerY,
+        forwardX: dirX,
+        forwardY: dirY,
+        rightX,
+        rightY,
+        radius,
+        phase: startPhase,
+        endPhase: startPhase + Math.PI * 2,
+        angularSpeed: data.speed / Math.max(radius, 1),
+        arcDir,
         carryXp: 0,
         carryHeals: 0,
         heading: angle,
         spinAngle: 0,
-        spinSpeed: (Math.random() < 0.5 ? -1 : 1) * 14,
+        spinSpeed: (Math.random() < 0.5 ? -1 : 1) * 18,
         elite: false
       });
       s.stats.boomerangsThrown++;
@@ -989,31 +1047,25 @@
       }
       for (let i = s.boomerangs.length - 1; i >= 0; i--) {
         const b = s.boomerangs[i];
-        b.life += dt;
-        let vx = 0, vy = 0;
-        if (b.state === 'out') {
-          const curveStrength = b.curve * Math.min(1, b.life / 0.45);
-          const perpX = -b.dirY, perpY = b.dirX;
-          vx = (b.dirX + perpX * curveStrength) * data.speed;
-          vy = (b.dirY + perpY * curveStrength) * data.speed;
-          const dx = b.x - s.player.x, dy = b.y - s.player.y;
-          if ((dx * dx + dy * dy) > (b.maxDist * b.maxDist)) b.state = 'return';
-        } else {
-          const dx = s.player.x - b.x, dy = s.player.y - b.y;
-          const len = Math.hypot(dx, dy) || 1;
-          vx = (dx / len) * data.speed * 1.15;
-          vy = (dy / len) * data.speed * 1.15;
-        }
-        b.x += vx * dt;
-        b.y += vy * dt;
-        b.heading = Math.atan2(vy, vx);
+        const prevX = b.x;
+        const prevY = b.y;
+        b.phase += b.angularSpeed * dt;
+        if (b.phase > b.endPhase) b.phase = b.endPhase;
+        const cos = Math.cos(b.phase) * b.radius * b.arcDir;
+        const sin = Math.sin(b.phase) * b.radius;
+        b.x = b.centerX + b.rightX * cos + b.forwardX * sin;
+        b.y = b.centerY + b.rightY * cos + b.forwardY * sin;
+        const dxStep = b.x - prevX;
+        const dyStep = b.y - prevY;
+        b.heading = Math.atan2(dyStep, dxStep);
         b.spinAngle = (b.spinAngle || 0) + (b.spinSpeed || 0) * dt;
+        b.prevX = b.x;
+        b.prevY = b.y;
 
         for (let j = s.enemies.length - 1; j >= 0; j--) {
           const e = s.enemies[j];
           if (RS.Util.dist2(b.x, b.y, e.x, e.y) < (10 + e.r) ** 2) {
             RS.Systems.applyDamage(e, RS.Systems.effDamage(data.damage, s), s);
-            if (b.state === 'out') b.state = 'return';
           }
         }
 
@@ -1032,9 +1084,7 @@
           }
         }
 
-        if (b.x < -32 || b.y < -32 || b.x > RS.Config.MAP + 32 || b.y > RS.Config.MAP + 32) b.state = 'return';
-
-        if (RS.Util.dist2(b.x, b.y, s.player.x, s.player.y) < (s.player.r + 10) ** 2 && b.state !== 'out') {
+        if (RS.Util.dist2(b.x, b.y, s.player.x, s.player.y) < (s.player.r + 10) ** 2 || b.phase >= b.endPhase - 0.01) {
           if (b.carryXp > 0) {
             s.player.xp += b.carryXp * s.player.xpGain;
             while (s.player.xp + RS.Config.BALANCE.XP_EPS >= s.player.xpTo) {
@@ -1051,8 +1101,54 @@
             s.player.hearts += 1;
             b.carryHeals--;
           }
+          while (b.carryHeals > 0) {
+            s.heals.push({ x: s.player.x + RS.Util.rnd(-14, 14), y: s.player.y + RS.Util.rnd(-14, 14), phase: 0 });
+            b.carryHeals--;
+          }
           s.boomerangs.splice(i, 1);
         }
+      }
+    },
+    sword(dt, s) {
+      const sw = s.sword;
+      if (!sw.enabled) return;
+      sw.timer -= dt * s.atkSpeed;
+      if (sw.timer <= 0) {
+        const target = nearestEnemyTo(s.player.x, s.player.y, s.enemies, sw.reach + 20);
+        if (!sw.angleSeed) sw.angleSeed = 0;
+        let angle;
+        if (target) {
+          angle = Math.atan2(target.y - s.player.y, target.x - s.player.x);
+        } else if (typeof s.player.facing === 'number') {
+          angle = s.player.facing;
+        } else {
+          sw.angleSeed += Math.PI / 3;
+          angle = sw.angleSeed;
+        }
+        sw.lastAngle = angle;
+        sw.swings.push({ t: 0, life: sw.duration, angle, reach: sw.reach, hit: new WeakSet() });
+        sw.timer = sw.cooldown;
+        s.stats.swordSwings += 1;
+      }
+      for (let i = sw.swings.length - 1; i >= 0; i--) {
+        const swing = sw.swings[i];
+        swing.t += dt;
+        for (let j = s.enemies.length - 1; j >= 0; j--) {
+          const e = s.enemies[j];
+          if (swing.hit.has(e)) continue;
+          const dx = e.x - s.player.x;
+          const dy = e.y - s.player.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist > swing.reach + e.r) continue;
+          const angToEnemy = Math.atan2(dy, dx);
+          let diff = angToEnemy - swing.angle;
+          diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+          if (Math.abs(diff) <= Math.PI / 2) {
+            RS.Systems.applyDamage(e, RS.Systems.effDamage(sw.dmg, s), s);
+            swing.hit.add(e);
+          }
+        }
+        if (swing.t >= swing.life) sw.swings.splice(i, 1);
       }
     },
     spinner(dt, s) {
@@ -1279,13 +1375,30 @@
       s.boomerangs.length = 0;
       s.spinner.rings.length = 0;
       s.spinner.dmg = 12;
+<<<<<<< ours
+<<<<<<< ours
+      s.sword.swings.length = 0;
+      Object.assign(s.sword, { enabled: false, timer: 0, cooldown: 1.15, dmg: 20, reach: 120, duration: 0.26, swings: [], angleSeed: 0 });
       Object.assign(s.bow,   { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 });
+=======
+=======
+>>>>>>> theirs
+      Object.assign(s.bow,   { cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 });
+>>>>>>> theirs
       Object.assign(s.bomb,  { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, radius: 140, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 });
       Object.assign(s.storm, { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 });
-      Object.assign(s.boomerang, { count: 1, cooldown: 0.85, timer: 0, speed: 520, range: 520, damage: 18 });
+      Object.assign(s.boomerang, { count: 1, cooldown: 0.75, timer: 0, speed: 460, range: 320, damage: 16 });
       s.boomerangAngle = 0;
       for (const k in s.levels) s.levels[k] = 0;
-      Object.assign(s.stats, { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 });
+<<<<<<< ours
+<<<<<<< ours
+      Object.assign(s.stats, { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, swordSwings: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 });
+=======
+      Object.assign(s.stats, { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, distance: 0, damageDealt: 0 });
+>>>>>>> theirs
+=======
+      Object.assign(s.stats, { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, distance: 0, damageDealt: 0 });
+>>>>>>> theirs
       s.atkSpeed = 1.0;
       s.leechRate = 0.0;
       s.leechPool = 0.0;
@@ -1628,6 +1741,31 @@
         ctx.fill();
       }
 
+<<<<<<< ours
+<<<<<<< ours
+      // Sword swings
+      for (const swing of s.sword.swings) {
+        const progress = Math.min(1, swing.t / swing.life);
+        const fade = 1 - progress;
+        const start = swing.angle - Math.PI / 2;
+        const end = swing.angle + Math.PI / 2;
+        ctx.beginPath();
+        ctx.moveTo(s.player.x, s.player.y);
+        ctx.arc(s.player.x, s.player.y, swing.reach, start, end);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(236,244,208,${0.28 * fade})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(250,252,240,${0.55 * fade})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(s.player.x, s.player.y, swing.reach, start, end);
+        ctx.stroke();
+      }
+
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
       // Spinner blades
       for (const ring of RS.State.spinner.rings) {
         for (let b = 0; b < ring.count; b++) {
@@ -1750,7 +1888,14 @@
         ...(s.stats.arrowsFired > 0 ? [`Arrows Fired: ${s.stats.arrowsFired}`] : []),
         ...(s.stats.bombsPlaced > 0 ? [`Bombs Placed: ${s.stats.bombsPlaced}`] : []),
         ...(s.stats.boltsCast > 0 ? [`Bolts Cast: ${s.stats.boltsCast}`] : []),
+<<<<<<< ours
+<<<<<<< ours
+        ...(s.stats.swordSwings > 0 ? [`Sword Swings: ${s.stats.swordSwings}`] : []),
         ...(s.stats.boomerangsThrown > 0 ? [`Boomerangs Thrown: ${s.stats.boomerangsThrown}`] : []),
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
         `Mobs Slain: ${s.stats.kills}`,
         `Damage Dealt: ${Math.round(s.stats.damageDealt)}`,
         `Distance Traveled: ${(s.stats.distance / 64).toFixed(1)} tiles`
@@ -1930,7 +2075,14 @@
       RS.Systems.input(dt, s);
       RS.Systems.spawner(dt, s);
       RS.Systems.enemies(dt, s);
+<<<<<<< ours
+<<<<<<< ours
       RS.Systems.boomerang(dt, s);
+      RS.Systems.sword(dt, s);
+=======
+>>>>>>> theirs
+=======
+>>>>>>> theirs
       RS.Systems.spinner(dt, s);
       RS.Systems.bow(dt, s);
       RS.Systems.storm(dt, s);
@@ -1970,7 +2122,15 @@
     console.assert(Math.round(Math.sqrt(U.dist2(0, 0, 3, 4))) === 5, 'dist2');
     const ids = new Set(Object.keys(RS.Registry.Relics));
     console.assert(ids.size === Object.keys(RS.Registry.Relics).length, 'relic ids unique');
-    const capsOk = ['spinner', 'bow', 'pierce', 'boomerang', 'storm', 'bomb', 'wake'].every(id => (RS.Registry.Relics[id]?.max === 5));
+<<<<<<< ours
+<<<<<<< ours
+    const capsOk = ['spinner', 'sword', 'bow', 'pierce', 'boomerang', 'storm', 'bomb', 'wake'].every(id => (RS.Registry.Relics[id]?.max === 5));
+=======
+    const capsOk = ['spinner', 'bow', 'pierce', 'storm', 'bomb', 'wake'].every(id => (RS.Registry.Relics[id]?.max === 5));
+>>>>>>> theirs
+=======
+    const capsOk = ['spinner', 'bow', 'pierce', 'storm', 'bomb', 'wake'].every(id => (RS.Registry.Relics[id]?.max === 5));
+>>>>>>> theirs
     console.assert(capsOk, 'caps=5 core');
     console.assert(!(RS.Registry.Relics.wake.canOffer && RS.Registry.Relics.wake.canOffer(S)), 'wake requires spinner (initially false)');
     console.assert(!(RS.Registry.Relics.leech.canOffer && RS.Registry.Relics.leech.canOffer(S)), 'leech gates at 8:00 (initially false)');
