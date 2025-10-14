@@ -7,12 +7,15 @@
 
 ## Project Structure
 - Active build lives at `relic-survivor-vortex-r13-readable.html` in the repo root. It contains HTML, CSS, and JS in a single file.
-- `AGENTS.md` tracks collaboration guidance. No other docs yet; create per-feature notes inline in this file until Katherine requests more structure.
+- `Outline.md` captures long-term direction (Adventure mode, Arcade rename, enemy plans). `ToDo.md` tracks actionable tasks—update both when scoping new work.
+- `Data_formats.md` documents schemas shared between in-game data and external tooling; keep it accurate when introducing persistence, new enemies, or balance tables.
+- `AGENTS.md` remains the collaboration playbook.
 - No external assets or build tooling—keep the project runnable by double-clicking the HTML file in a browser.
 - Modal UI (level-up picker) is rendered with inline DOM elements inside the HTML. Everything else draws to the main `<canvas id="game">`.
 
 ## Code Architecture
 - The script bootstraps under `'use strict'` and builds a single namespace object: `RS` with branches `Config`, `Util`, `Registry`, `State`, `Systems`, `Render`, `UI`, and `Tests`. Do not introduce globals outside this namespace.
+- Stick with browser-native **JavaScript** (TypeScript optional with a build step); CSS is for presentation only. Python is reserved for offline tooling that reads/writes the schemas in `Data_formats.md`.
 - Section order inside the script is deliberate and matches the comment banners:
   1. `RS.Config` constants (dimensions, palette, balance).
   2. `RS.Util` helpers (math, RNG, formatting).
