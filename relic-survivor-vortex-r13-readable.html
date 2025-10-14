@@ -159,7 +159,7 @@
     paused: false,
     gameOver: false,
     elapsed: 0,
-    stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, distance: 0, damageDealt: 0 },
+    stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 },
     player: {
       x: RS.Config.MAP / 2, y: RS.Config.MAP / 2, vx: 0, vy: 0, r: 14,
       baseSpeed: 250,
@@ -170,19 +170,21 @@
     },
     levels: {},
     spinner: { dmg: 12, rings: [] },
-    bow: { cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 },
+    bow: { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 },
     storm: { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 },
     bomb: { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, radius: 140, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 },
     wake: { enabled: false, level: 0, life: 0.22 },
+    boomerang: { count: 1, cooldown: 0.75, timer: 0, speed: 460, range: 320, damage: 16 },
     atkSpeed: 1.0,
     leechRate: 0.0,
     leechPool: 0.0,
-    enemies: [], projs: [], orbs: [], heals: [], bombs: [], placedBombs: [], bolts: [], trails: [],
+    enemies: [], projs: [], boomerangs: [], orbs: [], heals: [], bombs: [], placedBombs: [], bolts: [], trails: [],
     spinnerAcc: new WeakMap(),
     spawnTimer: 0,
     batTimer: RS.Config.BALANCE.BAT_BASE_PERIOD_S,
     goblinTimer: RS.Config.BALANCE.GOBLIN_BASE_PERIOD_S,
     goblinAmbushDone: false,
+    boomerangAngle: 0,
     keys: {},
     currentChoices: null,
     levelUpFrom: null,
@@ -210,6 +212,7 @@
     spinner: '🌀',
     bow: '🏹',
     pierce: '➳',
+    boomerang: '🪃',
     storm: '⚡',
     magnet: '🧲',
     bead: '💗',
@@ -466,8 +469,19 @@
       desc: '+1 arrow; volley cooldown ↓',
       max: 5,
       onPick(s) {
+        if (!s.bow.enabled) { s.bow.enabled = true; s.bow.timer = 0.2; }
         s.bow.arrows += 1;
         s.bow.cooldown = Math.max(0.55, s.bow.cooldown - 0.10);
+      }
+    },
+    {
+      id: 'boomerang',
+      name: 'Skyhook Loop',
+      desc: '+1 boomerang; cooldown ↓',
+      max: 5,
+      onPick(s) {
+        s.boomerang.count += 1;
+        s.boomerang.cooldown = Math.max(0.45, s.boomerang.cooldown - 0.05);
       }
     },
     {
@@ -935,6 +949,112 @@
         }
       }
     },
+    spawnBoomerang(s) {
+      const data = s.boomerang;
+      let target = nearestEnemyTo(s.player.x, s.player.y, s.enemies, data.range);
+      let angle;
+      if (target) {
+        angle = Math.atan2(target.y - s.player.y, target.x - s.player.x);
+      } else {
+        s.boomerangAngle = (s.boomerangAngle || 0) + Math.PI / 3;
+        angle = s.boomerangAngle;
+      }
+      const dirX = Math.cos(angle);
+      const dirY = Math.sin(angle);
+      const curve = (Math.random() * 0.6 + 0.3) * (Math.random() < 0.5 ? -1 : 1);
+      s.boomerangs.push({
+        x: s.player.x,
+        y: s.player.y,
+        dirX,
+        dirY,
+        state: 'out',
+        curve,
+        life: 0,
+        maxDist: data.range,
+        carryXp: 0,
+        carryHeals: 0,
+        heading: angle,
+        spinAngle: 0,
+        spinSpeed: (Math.random() < 0.5 ? -1 : 1) * 14,
+        elite: false
+      });
+      s.stats.boomerangsThrown++;
+    },
+    boomerang(dt, s) {
+      const data = s.boomerang;
+      data.timer -= dt * s.atkSpeed;
+      if (data.timer <= 0 && s.boomerangs.length < data.count) {
+        this.spawnBoomerang(s);
+        data.timer = data.cooldown;
+      }
+      for (let i = s.boomerangs.length - 1; i >= 0; i--) {
+        const b = s.boomerangs[i];
+        b.life += dt;
+        let vx = 0, vy = 0;
+        if (b.state === 'out') {
+          const curveStrength = b.curve * Math.min(1, b.life / 0.45);
+          const perpX = -b.dirY, perpY = b.dirX;
+          vx = (b.dirX + perpX * curveStrength) * data.speed;
+          vy = (b.dirY + perpY * curveStrength) * data.speed;
+          const dx = b.x - s.player.x, dy = b.y - s.player.y;
+          if ((dx * dx + dy * dy) > (b.maxDist * b.maxDist)) b.state = 'return';
+        } else {
+          const dx = s.player.x - b.x, dy = s.player.y - b.y;
+          const len = Math.hypot(dx, dy) || 1;
+          vx = (dx / len) * data.speed * 1.15;
+          vy = (dy / len) * data.speed * 1.15;
+        }
+        b.x += vx * dt;
+        b.y += vy * dt;
+        b.heading = Math.atan2(vy, vx);
+        b.spinAngle = (b.spinAngle || 0) + (b.spinSpeed || 0) * dt;
+
+        for (let j = s.enemies.length - 1; j >= 0; j--) {
+          const e = s.enemies[j];
+          if (RS.Util.dist2(b.x, b.y, e.x, e.y) < (10 + e.r) ** 2) {
+            RS.Systems.applyDamage(e, RS.Systems.effDamage(data.damage, s), s);
+            if (b.state === 'out') b.state = 'return';
+          }
+        }
+
+        for (let j = s.orbs.length - 1; j >= 0; j--) {
+          const o = s.orbs[j];
+          if (RS.Util.dist2(b.x, b.y, o.x, o.y) < 18 * 18) {
+            b.carryXp += o.v;
+            s.orbs.splice(j, 1);
+          }
+        }
+        for (let j = s.heals.length - 1; j >= 0; j--) {
+          const h = s.heals[j];
+          if (RS.Util.dist2(b.x, b.y, h.x, h.y) < 18 * 18) {
+            b.carryHeals += 1;
+            s.heals.splice(j, 1);
+          }
+        }
+
+        if (b.x < -32 || b.y < -32 || b.x > RS.Config.MAP + 32 || b.y > RS.Config.MAP + 32) b.state = 'return';
+
+        if (RS.Util.dist2(b.x, b.y, s.player.x, s.player.y) < (s.player.r + 10) ** 2 && b.state !== 'out') {
+          if (b.carryXp > 0) {
+            s.player.xp += b.carryXp * s.player.xpGain;
+            while (s.player.xp + RS.Config.BALANCE.XP_EPS >= s.player.xpTo) {
+              const from = s.player.level;
+              s.player.xp -= s.player.xpTo;
+              s.player.level += 1;
+              s.player.xpTo = Math.floor(s.player.xpTo * (s.player.level <= 10 ? 1.22 : 1.12) + (s.player.level <= 10 ? 8 : 4));
+              RS.State.levelUpFrom = from;
+              RS.State.levelUpTo = s.player.level;
+              RS.UI.rollChoices();
+            }
+          }
+          while (b.carryHeals > 0 && s.player.hearts < s.player.maxHearts) {
+            s.player.hearts += 1;
+            b.carryHeals--;
+          }
+          s.boomerangs.splice(i, 1);
+        }
+      }
+    },
     spinner(dt, s) {
       const collided = new Map();
       for (const ring of s.spinner.rings) {
@@ -977,6 +1097,7 @@
       }
     },
     bow(dt, s) {
+      if (!s.bow.enabled) return;
       s.bow.timer -= dt * s.atkSpeed;
       if (s.bow.timer <= 0 && s.enemies.length) {
         const target = [...s.enemies].sort((a, b) => RS.Util.dist2(a.x, a.y, s.player.x, s.player.y) - RS.Util.dist2(b.x, b.y, s.player.x, s.player.y))[0];
@@ -1155,13 +1276,16 @@
         level: 1, xp: 0, xpTo: 20, xpGain: 1
       });
       s.enemies.length = s.projs.length = s.orbs.length = s.heals.length = s.bombs.length = s.placedBombs.length = s.bolts.length = s.trails.length = 0;
+      s.boomerangs.length = 0;
       s.spinner.rings.length = 0;
       s.spinner.dmg = 12;
-      Object.assign(s.bow,   { cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 });
+      Object.assign(s.bow,   { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 });
       Object.assign(s.bomb,  { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, radius: 140, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 });
       Object.assign(s.storm, { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 });
+      Object.assign(s.boomerang, { count: 1, cooldown: 0.85, timer: 0, speed: 520, range: 520, damage: 18 });
+      s.boomerangAngle = 0;
       for (const k in s.levels) s.levels[k] = 0;
-      Object.assign(s.stats, { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, distance: 0, damageDealt: 0 });
+      Object.assign(s.stats, { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 });
       s.atkSpeed = 1.0;
       s.leechRate = 0.0;
       s.leechPool = 0.0;
@@ -1526,6 +1650,24 @@
         ctx.fill();
       }
 
+      for (const b of RS.State.boomerangs) {
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.rotate((b.heading || 0) + (b.spinAngle || 0));
+        ctx.fillStyle = '#fbbf24';
+        ctx.beginPath();
+        ctx.moveTo(-9, -2);
+        ctx.lineTo(-3, -7);
+        ctx.lineTo(9, 2);
+        ctx.lineTo(3, 7);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 1.4;
+        ctx.stroke();
+        ctx.restore();
+      }
+
       // Player
       const sps = 16;
       ctx.fillStyle = '#e2d9b0';
@@ -1608,6 +1750,7 @@
         ...(s.stats.arrowsFired > 0 ? [`Arrows Fired: ${s.stats.arrowsFired}`] : []),
         ...(s.stats.bombsPlaced > 0 ? [`Bombs Placed: ${s.stats.bombsPlaced}`] : []),
         ...(s.stats.boltsCast > 0 ? [`Bolts Cast: ${s.stats.boltsCast}`] : []),
+        ...(s.stats.boomerangsThrown > 0 ? [`Boomerangs Thrown: ${s.stats.boomerangsThrown}`] : []),
         `Mobs Slain: ${s.stats.kills}`,
         `Damage Dealt: ${Math.round(s.stats.damageDealt)}`,
         `Distance Traveled: ${(s.stats.distance / 64).toFixed(1)} tiles`
@@ -1787,6 +1930,7 @@
       RS.Systems.input(dt, s);
       RS.Systems.spawner(dt, s);
       RS.Systems.enemies(dt, s);
+      RS.Systems.boomerang(dt, s);
       RS.Systems.spinner(dt, s);
       RS.Systems.bow(dt, s);
       RS.Systems.storm(dt, s);
@@ -1826,7 +1970,7 @@
     console.assert(Math.round(Math.sqrt(U.dist2(0, 0, 3, 4))) === 5, 'dist2');
     const ids = new Set(Object.keys(RS.Registry.Relics));
     console.assert(ids.size === Object.keys(RS.Registry.Relics).length, 'relic ids unique');
-    const capsOk = ['spinner', 'bow', 'pierce', 'storm', 'bomb', 'wake'].every(id => (RS.Registry.Relics[id]?.max === 5));
+    const capsOk = ['spinner', 'bow', 'pierce', 'boomerang', 'storm', 'bomb', 'wake'].every(id => (RS.Registry.Relics[id]?.max === 5));
     console.assert(capsOk, 'caps=5 core');
     console.assert(!(RS.Registry.Relics.wake.canOffer && RS.Registry.Relics.wake.canOffer(S)), 'wake requires spinner (initially false)');
     console.assert(!(RS.Registry.Relics.leech.canOffer && RS.Registry.Relics.leech.canOffer(S)), 'leech gates at 8:00 (initially false)');
