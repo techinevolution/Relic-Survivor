@@ -1,8 +1,8 @@
 # Relic Survivor – To‑Do
 
 ## High Priority
-- [ ] Rename current survival build to **Arcade Mode** across UI, code comments, and documentation.
-- [ ] Add a mode-select flow that exposes **Adventure** vs. **Arcade** from the title screen.
+- [x] Rename current survival build to **Arcade Mode** across UI, code comments, and documentation.  ✅ done this session (UI messaging + docs).
+- [x] Add a mode-select flow that exposes **Adventure** vs. **Arcade** from the title screen.  ✅ selector live with per-mode messaging.
 - [ ] Draft Adventure Mode structure: stage list, unlock flow, and onboarding beats.
 - [ ] Decide on persistence stack (localStorage primary, JSON export/import secondary) and design reset/export UX.
 - [ ] Update global combat rules so weapon rank-ups modify patterns only; shift damage/attack-speed scaling to global relics.

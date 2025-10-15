@@ -170,6 +170,10 @@
     gameplayMode: 'arcade',
     codexFilter: 'monsters',
     codexSelection: 0,
+    modeLabel: 'Arcade Mode',
+    modeBannerTimer: 0,
+    adventureStage: null,
+    adventureObjective: null,
     stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, swordSwings: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 },
     player: {
       x: RS.Config.MAP / 2, y: RS.Config.MAP / 2, vx: 0, vy: 0, r: 14,
@@ -1484,6 +1488,16 @@
       s.goblinTimer = RS.Config.BALANCE.GOBLIN_BASE_PERIOD_S;
       s.goblinAmbushDone = false;
       RS.State.mode = 'playing';
+      if (s.gameplayMode === 'adventure') {
+        s.modeLabel = 'Adventure Mode (WIP)';
+        s.adventureStage = 'grasslands-intro';
+        s.adventureObjective = 'Explore the clearing and claim the Boomerang.';
+      } else {
+        s.modeLabel = 'Arcade Mode';
+        s.adventureStage = null;
+        s.adventureObjective = null;
+      }
+      s.modeBannerTimer = 3;
       RS.UI.uiButtons = [];
       RS.UI.showLevelModal(false);
     }
@@ -1914,6 +1928,15 @@
       ctx.fillStyle = 'rgba(15,15,15,0.8)';
       ctx.fillRect(0, 0, W, 44);
       RS.Render.drawHearts(16, 10, s.player.hearts, s.player.maxHearts);
+      ctx.fillStyle = '#cbd5f5';
+      ctx.font = '12px ui-sans-serif,system-ui';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'start';
+      ctx.fillText(s.modeLabel || '', 120, 16);
+      if (s.adventureStage) {
+        ctx.fillStyle = '#94a3b8';
+        ctx.fillText(`Stage: ${s.adventureStage.replace(/[-_]/g, ' ')}`, 120, 30);
+      }
       ctx.font = '14px ui-sans-serif,system-ui';
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'start';
@@ -1932,6 +1955,33 @@
       ctx.fillText('P for Pause', RS.Config.W - 10, 22);
       ctx.textAlign = 'start';
     },
+    modeBanner() {
+      const s = RS.State;
+      if (s.modeBannerTimer <= 0) return;
+      const { W } = RS.Config;
+      const lines = [s.modeLabel || ''];
+      if (s.gameplayMode === 'adventure' && s.adventureObjective) lines.push(s.adventureObjective);
+      const boxW = 520;
+      const boxH = 26 * lines.length + 20;
+      const x = W / 2 - boxW / 2;
+      const y = 72;
+      const alpha = Math.min(0.85, s.modeBannerTimer > 0.5 ? 0.85 : s.modeBannerTimer / 0.5 * 0.85);
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(x, y, boxW, boxH);
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = 'rgba(148,163,184,0.6)';
+      ctx.strokeRect(x, y, boxW, boxH);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '16px ui-sans-serif,system-ui';
+      ctx.textAlign = 'center';
+      lines.forEach((line, i) => {
+        ctx.fillText(line, W / 2, y + 24 + i * 22);
+      });
+      ctx.restore();
+    },
     pause() {
       const { W } = RS.Config, s = RS.State;
       const w = 560, h = 320, x = W / 2 - w / 2, y = RS.Config.H / 2 - h / 2;
@@ -1945,10 +1995,13 @@
       ctx.fillStyle = '#e2e8f0';
       ctx.font = '18px ui-sans-serif,system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText(`Paused — LV ${s.player.level}`, W / 2, y + 28);
+      ctx.fillText(`Paused — ${s.modeLabel}`, W / 2, y + 28);
       ctx.font = '12px ui-sans-serif,system-ui';
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText(`Time ${RS.Util.fmtTime(s.elapsed)}`, W / 2, y + 46);
+      ctx.fillText(`Time ${RS.Util.fmtTime(s.elapsed)}   •   Level ${s.player.level}`, W / 2, y + 46);
+      if (s.gameplayMode === 'adventure' && s.adventureObjective) {
+        ctx.fillText(s.adventureObjective, W / 2, y + 62);
+      }
       const weaponStats = [
         { label: 'Sword', current: s.sword.dmg, base: RS.Config.WEAPONS.sword.baseDamage, enabled: s.sword.enabled },
         { label: 'Boomerang', current: s.boomerang.damage, base: RS.Config.WEAPONS.boomerang.baseDamage, enabled: true },
@@ -1957,7 +2010,7 @@
         { label: 'Bombbloom', current: s.bomb.dmg, base: RS.Config.WEAPONS.bomb.baseDamage, enabled: s.bomb.enabled },
         { label: 'Spinner', current: s.spinner.dmg, base: RS.Config.WEAPONS.spinner.baseDamage, enabled: s.spinner.rings.length > 0 }
       ];
-      const wx = x + 18, wy = y + 64;
+      const wx = x + 18, wy = y + 82;
       ctx.textAlign = 'left';
       ctx.font = '14px ui-sans-serif,system-ui';
       ctx.fillStyle = '#e2e8f0';
@@ -1995,6 +2048,8 @@
       RS.Render.drawCenterText(`Survived ${RS.Util.fmtTime(s.elapsed)}`, 20, y + 40);
       const totalRelicLevels = Object.values(s.levels).reduce((a, b) => a + (b || 0), 0);
       const lines = [
+        `Mode: ${s.modeLabel}`,
+        ...(s.adventureStage ? [`Stage: ${s.adventureStage.replace(/[-_]/g, ' ')}`] : []),
         `Level Reached: ${s.player.level}`,
         `Total Relic Levels: ${totalRelicLevels}`,
         ...(s.stats.arrowsFired > 0 ? [`Arrows Fired: ${s.stats.arrowsFired}`] : []),
@@ -2138,6 +2193,9 @@
           const btnHeight = 56;
           const btnStartY = y + 100;
           RS.Render.drawButton(x + (boxW - btnWidth) / 2, btnStartY, btnWidth, btnHeight, 'Adventure Mode', false);
+          ctx.font = '12px ui-sans-serif,system-ui';
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText('Story stages that unlock gear (prototype)', W / 2, btnStartY + btnHeight + 18);
           RS.UI.uiButtons.push({
             x: x + (boxW - btnWidth) / 2,
             y: btnStartY,
@@ -2152,6 +2210,9 @@
           const arcadeY = btnStartY + btnHeight + 24;
           const arcadeLocked = false;
           RS.Render.drawButton(x + (boxW - btnWidth) / 2, arcadeY, btnWidth, btnHeight, 'Arcade Mode', arcadeLocked);
+          ctx.font = '12px ui-sans-serif,system-ui';
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText(arcadeLocked ? 'Unlock all weapons in Adventure to enter.' : 'Endless survival with full kit.', W / 2, arcadeY + btnHeight + 18);
           RS.UI.uiButtons.push({
             x: x + (boxW - btnWidth) / 2,
             y: arcadeY,
@@ -2296,6 +2357,7 @@
       RS.Systems.pickups(dt, s);
       RS.Systems.updateLeech(dt, s);
       s.elapsed += dt;
+      s.modeBannerTimer = Math.max(0, s.modeBannerTimer - dt);
     }
     draw();
   }
@@ -2305,6 +2367,7 @@
     if ([ 'attract', 'menu', 'how', 'options', 'credits', 'codex', 'playSelect' ].includes(s.mode)) { RS.Render.attract(); return; }
     RS.Render.world();
     RS.Render.hud();
+    RS.Render.modeBanner();
     RS.UI.uiButtons = [];
     if (s.paused && !s.gameOver && !s.currentChoices) RS.Render.pause();
     if (s.gameOver) RS.Render.death();
