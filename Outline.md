@@ -36,6 +36,7 @@
   - Each rank widens the arc until 180° at max rank.
 - **Boomerang (Skyhook Loop)**
   - Each rank adds another boomerang in the volley.
+  - Each boomerang will run an independent timer so the screen can stay busy; add logic to seek XP drops only when no enemies are nearby.
   - Boomerang ignores heart pickups unless the player is missing health.
 - **Bow (Voyager Bow)**
   - Ranks add arrows.
@@ -70,6 +71,7 @@
 - Investigate modularizing the single HTML file only when persistence or tooling demands it.
 - Introduce `Data_formats.md` as the schema hub shared between HTML and potential Python tooling.
 - Document renaming of the current system to **Arcade Mode** in code comments and UI during future implementation.
+- Long-term input goal: allow manual weapon control via click-to-attack and per-weapon auto/manual toggles once Adventure work settles.
 
 ## Open Questions
 - How are Adventure Mode stages structured (linear, branching, challenge tiers)?

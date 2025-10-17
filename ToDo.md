@@ -11,6 +11,7 @@
 ## Weapons & Relics
 - [ ] Sword: implement tiered arc growth (45° → 180° by max rank).
 - [ ] Boomerang: add volley count per rank and ignore heart pickups at full health (bug regression check).
+  - [ ] Tweak cadence: track per-boomerang timers so a full volley stays active; consider XP-seek behavior when no enemies remain.
 - [ ] Bow: convert projectiles to triangles and add extra arrows per rank.
 - [ ] Skybrand: scale chain count with ranks; Rank 5 adds fork chance per jump.
 - [ ] Bombbloom: halve base explosion radius/visual, expand bomb counts per rank, Rank 5 restores wide blast.
@@ -47,3 +48,4 @@
 - [ ] Investigate modular build pipeline if single-file structure becomes limiting.
 - [ ] Consider accessibility options (colorblind outlines, screen shake toggle) while revamping art and VFX.
 - [ ] Evaluate WebGL-backed renderer (Pixi.js/Three.js) if Canvas performance becomes a bottleneck after art/VFX updates.
+- [ ] Prototype optional manual weapon controls so players can click-to-attack or toggle individual weapons between auto/manual fire.

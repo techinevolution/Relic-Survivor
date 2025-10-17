@@ -1494,7 +1494,7 @@
       s.sword.swings.length = 0;
       Object.assign(s.sword, { enabled: false, timer: 0, cooldown: 1.15, dmg: 20, reach: 120, duration: 0.26, angleSeed: 0, lastAngle: 0 });
       Object.assign(s.bow,   { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 });
-      Object.assign(s.bomb,  { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, radius: 140, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 });
+      Object.assign(s.bomb,  { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0] * 1.15, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 });
       Object.assign(s.storm, { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 });
       Object.assign(s.boomerang, { count: 1, cooldown: 0.75, timer: 0, speed: 460, range: 320, damage: 16 });
       s.boomerangAngle = 0;
