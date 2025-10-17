@@ -118,11 +118,11 @@
       goblin: { hp: 120, speed: 160, damage: 20, xp: 18 }
     },
     WEAPONS: {
-      sword: { name: 'Brambleblade', baseDamage: 20, baseCooldown: 1.15, type: 'melee', desc: 'Arc slash that widens with practice.' },
+      sword: { name: 'Brambleblade', baseDamage: 20, baseCooldown: 1.15, type: 'melee', desc: 'Arc slash that widens with practice.', arcs: [45, 90, 120, 150, 180] },
       boomerang: { name: 'Skyhook Loop', baseDamage: 16, baseCooldown: 0.75, type: 'projectile', desc: 'Returning throw that gathers spoils.' },
-      bow: { name: 'Voyager Bow', baseDamage: 15, baseCooldown: 1.35, type: 'projectile', desc: 'Volley of arrows that grows in number.' },
+      bow: { name: 'Voyager Bow', baseDamage: 15, baseCooldown: 1.35, type: 'projectile', desc: 'Volley of arrows that grows in number.', spread: 0.08 },
       storm: { name: 'Skybrand Sigil', baseDamage: 34, baseCooldown: 3.0, type: 'chain', desc: 'Lightning that leaps across foes.' },
-      bomb: { name: 'Bombbloom', baseDamage: 50, baseCooldown: 6.0, type: 'explosive', desc: 'Trailing seeds that erupt after a fuse.' },
+      bomb: { name: 'Bombbloom', baseDamage: 50, baseCooldown: 6.0, type: 'explosive', desc: 'Trailing seeds that erupt after a fuse.', radiusByRank: [70, 90, 110, 125, 140], maxTrail: 5 },
       spinner: { name: 'Forest Spinner', baseDamage: 12, baseCooldown: 0, type: 'orbit', desc: 'Protective blades circling the survivor.' }
     }
   };
@@ -188,8 +188,8 @@
     spinner: { dmg: 12, rings: [] },
     bow: { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 },
     storm: { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 },
-    sword: { enabled: false, timer: 0, cooldown: 1.15, dmg: 20, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0 },
-    bomb: { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, radius: 140, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 },
+    sword: { enabled: false, timer: 0, cooldown: 1.15, dmg: 20, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 },
+    bomb: { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 },
     wake: { enabled: false, level: 0, life: 0.22 },
     boomerang: { count: 1, cooldown: 0.75, timer: 0, speed: 460, range: 320, damage: 16 },
     atkSpeed: 1.0,
@@ -556,19 +556,17 @@
     {
       id: 'sword',
       name: 'Brambleblade',
-      desc: 'Arc slash damage & reach ↑; unlocks blade strikes',
+      desc: 'Arc slash widens with practice',
       max: 5,
       onPick(s) {
         if (!s.sword.enabled) { s.sword.enabled = true; s.sword.timer = 0.15; }
-        s.sword.dmg += 4;
-        s.sword.reach = Math.min(170, s.sword.reach + 6);
-        s.sword.cooldown = Math.max(0.55, s.sword.cooldown - 0.08);
+        RS.Systems.updateSwordProfile(s);
       }
     },
     {
       id: 'bow',
       name: 'Voyager Bow',
-      desc: '+1 arrow; volley cooldown ↓',
+      desc: '+1 arrow per rank',
       max: 5,
       onPick(s) {
         if (!s.bow.enabled) {
@@ -578,7 +576,6 @@
         } else {
           s.bow.arrows += 1;
         }
-        s.bow.cooldown = Math.max(0.55, s.bow.cooldown - 0.10);
       }
     },
     {
@@ -631,14 +628,18 @@
     {
       id: 'bomb',
       name: 'Bombbloom',
-      desc: 'Drop bomb + trailing bombs',
+      desc: 'Drop bomb + extra trailing blooms',
       max: 5,
       onPick(s) {
-        if (!s.bomb.enabled) { s.bomb.enabled = true; s.bomb.timer = 0.5; }
-        else s.bomb.trail = Math.min(s.bomb.trail + 1, 4);
-        s.bomb.cooldown = Math.max(2.5, s.bomb.cooldown - 0.35);
-        s.bomb.dmg += 10;
-        s.bomb.radius += 10;
+        if (!s.bomb.enabled) {
+          s.bomb.enabled = true;
+          s.bomb.timer = 0.5;
+          s.bomb.trail = 0;
+        } else {
+          const maxTrail = RS.Config.WEAPONS.bomb.maxTrail ?? 5;
+          s.bomb.trail = Math.min(maxTrail, s.bomb.trail + 1);
+        }
+        RS.Systems.updateBombProfile(s);
       }
     },
     {
@@ -1217,7 +1218,7 @@
           angle = sw.angleSeed;
         }
         sw.lastAngle = angle;
-        sw.swings.push({ t: 0, life: sw.duration, angle, reach: sw.reach, hit: new WeakSet() });
+        sw.swings.push({ t: 0, life: sw.duration, angle, reach: sw.reach, arc: sw.arc || Math.PI, hit: new WeakSet() });
         sw.timer = sw.cooldown;
         s.stats.swordSwings += 1;
       }
@@ -1234,7 +1235,7 @@
           const angToEnemy = Math.atan2(dy, dx);
           let diff = angToEnemy - swing.angle;
           diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-          if (Math.abs(diff) <= Math.PI / 2) {
+          if (Math.abs(diff) <= ((swing.arc || Math.PI) / 2)) {
             RS.Systems.applyDamage(e, RS.Systems.effDamage(sw.dmg, s), s);
             swing.hit.add(e);
           }
@@ -1290,16 +1291,22 @@
         const target = [...s.enemies].sort((a, b) => RS.Util.dist2(a.x, a.y, s.player.x, s.player.y) - RS.Util.dist2(b.x, b.y, s.player.x, s.player.y))[0];
         if (target) {
           const volleys = s.bow.arrows;
+          const spread = RS.Config.WEAPONS.bow.spread ?? 0.08;
           for (let k = 0; k < volleys; k++) {
-            const jitter = (k - (volleys - 1) / 2) * 0.08;
+            const jitter = (k - (volleys - 1) / 2) * spread;
             const dx = target.x - s.player.x, dy = target.y - s.player.y;
             const ang = Math.atan2(dy, dx) + jitter;
             s.projs.push({
               x: s.player.x, y: s.player.y,
               vx: Math.cos(ang) * s.bow.speed,
               vy: Math.sin(ang) * s.bow.speed,
-              r: 6, dmg: s.bow.dmg, life: s.bow.life, pierce: s.bow.pierce,
-              hitSet: new Set()
+              dmg: s.bow.dmg, life: s.bow.life, pierce: s.bow.pierce,
+              hitSet: new Set(),
+              shape: 'arrow',
+              heading: ang,
+              length: 14,
+              width: 4,
+              r: 4
             });
             s.stats.arrowsFired++;
           }
@@ -1310,6 +1317,7 @@
         const pr = s.projs[i];
         pr.x += pr.vx * dt;
         pr.y += pr.vy * dt;
+        pr.heading = Math.atan2(pr.vy, pr.vx);
         pr.life -= dt;
         if (pr.x < 0 || pr.y < 0 || pr.x > RS.Config.MAP || pr.y > RS.Config.MAP) { s.projs.splice(i, 1); continue; }
         for (let j = s.enemies.length - 1; j >= 0; j--) {
@@ -1374,17 +1382,18 @@
         const b = s.placedBombs[i];
         b.timer += dt;
         if (b.timer >= b.fuse) {
-          s.bombs.push({ t: 0, x: b.x, y: b.y, r: 10, life: 0.35, dmg: s.bomb.dmg });
+          s.bombs.push({ t: 0, x: b.x, y: b.y, r: 0, target: s.bomb.explosionRadius, life: 0.32, dmg: s.bomb.dmg });
           s.placedBombs.splice(i, 1);
         }
       }
       for (let i = s.bombs.length - 1; i >= 0; i--) {
         const b = s.bombs[i];
         b.t += dt;
-        b.r += 500 * dt;
+        const growth = (b.target - b.r) * 12 * dt;
+        b.r = Math.min(b.target, b.r + growth);
         for (let j = s.enemies.length - 1; j >= 0; j--) {
           const e = s.enemies[j];
-          if (RS.Util.dist2(b.x, b.y, e.x, e.y) < b.r * b.r) RS.Systems.applyDamage(e, RS.Systems.effDamage(s.bomb.dmg, s) * dt * 1.2, s);
+          if (RS.Util.dist2(b.x, b.y, e.x, e.y) < b.r * b.r) RS.Systems.applyDamage(e, RS.Systems.effDamage(b.dmg, s) * dt * 1.2, s);
         }
         if (b.t >= b.life) s.bombs.splice(i, 1);
       }
@@ -1445,6 +1454,21 @@
         }
       }
     },
+    updateSwordProfile(s) {
+      const arcs = RS.Config.WEAPONS.sword.arcs || [180];
+      const rank = Math.max(1, s.levels.sword || 0);
+      const idx = Math.min(arcs.length - 1, rank - 1);
+      s.sword.arc = (arcs[idx] * Math.PI) / 180;
+    },
+    updateBombProfile(s) {
+      const radii = RS.Config.WEAPONS.bomb.radiusByRank || [70];
+      const rank = Math.max(1, s.levels.bomb || 0);
+      const idx = Math.min(radii.length - 1, rank - 1);
+      s.bomb.explosionRadius = radii[idx] * 1.15;
+      const maxTrail = RS.Config.WEAPONS.bomb.maxTrail ?? 5;
+      s.bomb.trail = Math.min(s.bomb.trail, maxTrail);
+      s.bomb.trailLeft = Math.min(s.bomb.trailLeft, s.bomb.trail);
+    },
     onDeath(s) {
       s.gameOver = true;
       s.paused = false;
@@ -1498,6 +1522,8 @@
         s.adventureObjective = null;
       }
       s.modeBannerTimer = 3;
+      RS.Systems.updateSwordProfile(s);
+      RS.Systems.updateBombProfile(s);
       RS.UI.uiButtons = [];
       RS.UI.showLevelModal(false);
     }
@@ -1826,19 +1852,39 @@
       for (const e of RS.State.enemies) RS.Registry.Enemies[e.type].draw(e, ctx, RS.State);
 
       // Projectiles
-      ctx.fillStyle = '#d9e26f';
       for (const pr of RS.State.projs) {
-        ctx.beginPath();
-        ctx.arc(pr.x, pr.y, pr.r, 0, Math.PI * 2);
-        ctx.fill();
+        if (pr.shape === 'arrow') {
+          const length = pr.length ?? 12;
+          const width = pr.width ?? 4;
+          ctx.save();
+          ctx.translate(pr.x, pr.y);
+          ctx.rotate(pr.heading || Math.atan2(pr.vy || 0, pr.vx || 1));
+          ctx.fillStyle = '#fcd34d';
+          ctx.beginPath();
+          ctx.moveTo(-length * 0.4, -width * 0.5);
+          ctx.lineTo(length * 0.5, 0);
+          ctx.lineTo(-length * 0.4, width * 0.5);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = '#f59e0b';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          ctx.fillStyle = '#d9e26f';
+          ctx.beginPath();
+          ctx.arc(pr.x, pr.y, pr.r || 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
 
       // Sword swings
       for (const swing of s.sword.swings) {
         const progress = Math.min(1, swing.t / swing.life);
         const fade = 1 - progress;
-        const start = swing.angle - Math.PI / 2;
-        const end = swing.angle + Math.PI / 2;
+        const halfArc = (swing.arc || Math.PI) / 2;
+        const start = swing.angle - halfArc;
+        const end = swing.angle + halfArc;
         ctx.beginPath();
         ctx.moveTo(s.player.x, s.player.y);
         ctx.arc(s.player.x, s.player.y, swing.reach, start, end);
@@ -1848,7 +1894,9 @@
         ctx.strokeStyle = `rgba(250,252,240,${0.55 * fade})`;
         ctx.lineWidth = 3;
         ctx.beginPath();
+        ctx.moveTo(s.player.x, s.player.y);
         ctx.arc(s.player.x, s.player.y, swing.reach, start, end);
+        ctx.closePath();
         ctx.stroke();
       }
 
