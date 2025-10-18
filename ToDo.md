@@ -5,16 +5,22 @@
 - [x] Add a mode-select flow that exposes **Adventure** vs. **Arcade** from the title screen.  ✅ selector live with per-mode messaging.
 - [ ] Draft Adventure Mode structure: stage list, unlock flow, and onboarding beats.
 - [ ] Decide on persistence stack (localStorage primary, JSON export/import secondary) and design reset/export UX.
-- [ ] Update global combat rules so weapon rank-ups modify patterns only; shift damage/attack-speed scaling to global relics.
-- [ ] Rework projectile systems (boomerang, bow, skybrand) to respect the player’s 180° facing cone and current facing direction.
+- [x] Update global combat rules so weapon rank-ups modify patterns only; shift damage/attack-speed scaling to global relics.  ✅ sword/bow/bomb now pattern-only.
+- [x] Rework projectile systems (boomerang, bow, skybrand) to respect the player’s 180° facing cone and current facing direction.  ✅ bow/boomerang done; skybrand pending.
 
 ## Weapons & Relics
-- [ ] Sword: implement tiered arc growth (45° → 180° by max rank).
+- [x] Sword: implement tiered arc growth (45° → 180° by max rank).
+- [ ] Implement action bar overlay with cooldowns, selection highlight, and per-weapon auto toggles (manual/hybrid mode).
+- [ ] Implement compact auto bar for full-auto runs; enforce active-weapon cap once weapon roster expands.
+
 - [ ] Boomerang: add volley count per rank and ignore heart pickups at full health (bug regression check).
   - [ ] Tweak cadence: track per-boomerang timers so a full volley stays active; consider XP-seek behavior when no enemies remain.
-- [ ] Bow: convert projectiles to triangles and add extra arrows per rank.
+- [x] Bow: convert projectiles to triangles and add extra arrows per rank.
+- [ ] Magnet Rune: scale pickup radius per rank; Rank 5 spawns consumable vacuum droplet that collects all XP.
+- [ ] Design boomerang augment relic that increases boomerang pickup radius per rank.
+
 - [ ] Skybrand: scale chain count with ranks; Rank 5 adds fork chance per jump.
-- [ ] Bombbloom: halve base explosion radius/visual, expand bomb counts per rank, Rank 5 restores wide blast.
+- [x] Bombbloom: halve base explosion radius/visual, expand bomb counts per rank, Rank 5 restores wide blast.  (Base radius toned down & scales, trail-only rank ups.)
 - [ ] Spinner/Wake: cap blades at five; scale wake length with rank.
 - [ ] Tempo Charm: ensure each weapon’s cadence responds to the relic’s attack-speed bonus.
 

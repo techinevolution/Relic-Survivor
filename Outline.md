@@ -53,6 +53,15 @@
   - Wake trail starts short and lengthens with ranks.
 - **Tempo Charm**
   - Provides global attack-speed scaling per weapon: sword swing frequency, boomerang volleys, bow salvos, skybrand cooldown, bomb volleys, spinner rotation speed.
+- **Magnet Rune**
+  - Ranks 1-4: widen pickup radius steadily.
+  - Rank 5: spawn a limited-use vacuum drop that pulls all XP on the field when collected.
+- **Boomerang Augment (future relic)**
+  - Unlock bonus that boosts boomerang pickup radius per rank, so returned blades sweep wider XP arcs.
+
+- **Interface Modes**
+  - **Action Bar** (manual/hybrid): weapon icons run along the bottom center with radial cooldowns, auto toggles, and a gold highlight for the selected weapon. Left-click fires the highlighted weapon toward cursor/facing while respecting cooldown floors.
+  - **Compact Auto Bar** (survivor-style): shrunk icons summarise owned weapons when full auto is preferred. Cap simultaneous weapons (e.g., 4 main + 2 utility) once new gear is added.
 
 ## Enemies & Encounters
 - **Slimes**: Delay mini-split spawn to avoid instant multi-hits.
