@@ -32,7 +32,10 @@
   - [ ] Spider with charge-and-web root attack.
   - [ ] Ghost with visibility-based vulnerability and retreat dash.
 - [ ] Plan art refresh toward “modern Atari” style using provided player sprite as reference.
+  - [ ] Derive palette (bright greens, dark outlines) to match inspiration while keeping minimalist shapes.
+  - [ ] Refresh ground layer (procedural grass noise + darker patches) with new palette.
 - [ ] Decide how placeholders vs. final art roll out (e.g., silhouettes first, full Atari treatment later).
+  - [ ] Create lightweight tree/bush/rock sprites using new palette and Atari-style simplification.
 
 ## Adventure & Progression
 - [ ] Place first-run weapon pickups in Adventure stages; mark unlocked status in persistence.
@@ -45,6 +48,9 @@
 
 ## Tooling & Docs
 - [ ] Keep `Data_formats.md` in sync with new schemas (progress saves, weapon configs, enemy definitions, art metadata).
+- [ ] Implement save system using `localStorage` (auto-save hooks + Options menu controls).
+- [ ] Add export/import/reset UI for saves; ensure JSON schema versioning is documented.
+
 - [ ] Expand `AGENTS.md` with Arcade/Adventure mode vocabulary once changes land.
 - [ ] Capture balancing notes and open questions in Outline/ToDo during development.
 - [ ] Prototype optional Python tooling for batch-editing stage or weapon data using `Data_formats.md` schemas.

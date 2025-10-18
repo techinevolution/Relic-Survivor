@@ -11,6 +11,7 @@
 - `Data_formats.md` documents schemas shared between in-game data and external tooling; keep it accurate when introducing persistence, new enemies, or balance tables.
 - `AGENTS.md` remains the collaboration playbook.
 - No external assets or build tooling—keep the project runnable by double-clicking the HTML file in a browser.
+- Persistence plan: Use browser `localStorage` (single key JSON). Document schema in `Data_formats.md`; bump version when fields change.
 - Modal UI (level-up picker) is rendered with inline DOM elements inside the HTML. Everything else draws to the main `<canvas id="game">`.
 
 ## Code Architecture

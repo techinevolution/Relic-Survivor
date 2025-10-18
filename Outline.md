@@ -26,6 +26,16 @@
   - Cosmetic toggles (future-proofing).
 - Provide manual reset/export options to keep the single-file distribution viable.
 
+## Persistence & Save UX
+- Use browser `localStorage` for primary save data (`relic-survivor-save` JSON).
+- Track schema version so we can migrate or reset gracefully.
+- Provide Options menu actions:
+  - `Save Now` / auto-save on significant events (level-up, stage clear).
+  - `Export Save` (downloads JSON) and `Import Save` (paste/upload).
+  - `Reset Progress` with confirmation dialog.
+- Store: unlocked weapons/relics, adventure stage flags, options, stats seeds.
+- Future: optional manual save slots / cloud sync hooks if platform allows.
+
 ## Weapons & Relics Direction
 - **Global Rules**
   - Weapon rank-ups change behavior/coverage only (no per-weapon damage or attack-speed scaling).
@@ -72,7 +82,7 @@
 - **Ghost**: Becomes translucent and pauses when faced; dashes away if approached. Vulnerable only when visible, encouraging area damage.
 
 ## Art Direction
-- Evolve enemy visuals toward a minimalist “modern Atari” look.
+- Evolve visuals toward minimalist “modern Atari” shapes while embracing a brighter, grassy palette inspired by the reference image (punchy greens, dark outlines).
 - Use the provided player sprite proportions as reference for new enemy designs.
 - Highlight special enemies (skull flames, spider webs) with simple but readable VFX.
 
