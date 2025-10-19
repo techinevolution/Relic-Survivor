@@ -88,14 +88,19 @@
       enemyHP: '#a64',
       enemyHPBG: '#2b2b2b',
       border: '#233423',
-      groundBase: '#1a301a',
-      groundShade: 'rgba(12,40,12,0.35)',
-      groundHighlight: 'rgba(78,128,62,0.45)',
-      groundDirt: '#3a2b1a',
-      groundDirtLight: 'rgba(126,98,60,0.32)',
-      grassPrimary: '#3f7f3a',
-      grassHighlight: '#78d07d',
-      pebble: 'rgba(46,64,46,0.6)'
+      groundBase: '#4aa33f',
+      groundShade: 'rgba(35,122,42,0.38)',
+      groundHighlight: 'rgba(116,206,102,0.42)',
+      groundDirt: '#3c7225',
+      groundDirtLight: 'rgba(206,236,120,0.28)',
+      grassPrimary: '#2f7f35',
+      grassHighlight: '#a4f291',
+      pebble: 'rgba(54,92,47,0.55)',
+      treeLeaf: '#3f9d3f',
+      treeLeafDark: '#28702d',
+      treeHighlight: '#8be68f',
+      treeTrunk: '#754a24',
+      treeTrunkDark: '#4f3014'
     },
     BALANCE: {
       HIT_IFRAMES: 0.9,
@@ -174,6 +179,8 @@
     modeBannerTimer: 0,
     adventureStage: null,
     adventureObjective: null,
+    scenery: [],
+    sceneryReady: false,
     stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, swordSwings: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 },
     player: {
       x: RS.Config.MAP / 2, y: RS.Config.MAP / 2, vx: 0, vy: 0, r: 14,
@@ -1469,6 +1476,38 @@
       s.bomb.trail = Math.min(s.bomb.trail, maxTrail);
       s.bomb.trailLeft = Math.min(s.bomb.trailLeft, s.bomb.trail);
     },
+    generateScenery(s) {
+      s.scenery.length = 0;
+      const spacing = 300;
+      const margin = 220;
+      for (let x = margin, xi = 0; x < RS.Config.MAP - margin; x += spacing, xi++) {
+        for (let y = margin, yi = 0; y < RS.Config.MAP - margin; y += spacing, yi++) {
+          const noise = ((xi * 92837111) ^ (yi * 689287499)) >>> 0;
+          if ((noise & 31) < 7) {
+            const offsetX = (((noise >> 5) & 255) - 128) * 0.6;
+            const offsetY = (((noise >> 13) & 255) - 128) * 0.6;
+            const variant = (noise >> 21) & 3;
+            s.scenery.push({ type: 'tree', x: x + offsetX, y: y + offsetY, variant });
+          }
+        }
+      }
+    },
+    addXp(amount, s) {
+      if (amount <= 0) return;
+      s.player.xp += amount * s.player.xpGain;
+      while (s.player.xp + RS.Config.BALANCE.XP_EPS >= s.player.xpTo) {
+        const from = s.player.level;
+        s.player.xp -= s.player.xpTo;
+        s.player.level += 1;
+        const nextLevel = s.player.level;
+        const mult = nextLevel <= 10 ? 1.22 : 1.12;
+        const add = nextLevel <= 10 ? 8 : 4;
+        s.player.xpTo = Math.floor(s.player.xpTo * mult + add);
+        RS.State.levelUpFrom = from;
+        RS.State.levelUpTo = s.player.level;
+        RS.UI.rollChoices();
+      }
+    },
     onDeath(s) {
       s.gameOver = true;
       s.paused = false;
@@ -1524,6 +1563,10 @@
       s.modeBannerTimer = 3;
       RS.Systems.updateSwordProfile(s);
       RS.Systems.updateBombProfile(s);
+      if (!s.sceneryReady) {
+        RS.Systems.generateScenery(s);
+        s.sceneryReady = true;
+      }
       RS.UI.uiButtons = [];
       RS.UI.showLevelModal(false);
     }
@@ -1773,6 +1816,33 @@
         }
       }
       ctx.lineWidth = 1;
+      const drawTree = (tree) => {
+        ctx.save();
+        ctx.translate(tree.x, tree.y);
+        const scale = 1 + tree.variant * 0.08;
+        const size = 32 * scale;
+        ctx.fillStyle = 'rgba(0,0,0,0.22)';
+        ctx.beginPath();
+        ctx.ellipse(0, size * 0.45, size * 0.48, size * 0.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = C.treeLeafDark;
+        ctx.fillRect(-size * 0.55, -size * 0.85, size * 1.1, size * 0.85);
+        ctx.fillStyle = C.treeLeaf;
+        ctx.fillRect(-size * 0.48, -size * 0.8, size * 0.96, size * 0.74);
+        ctx.fillStyle = C.treeHighlight;
+        ctx.fillRect(-size * 0.28, -size * 0.8, size * 0.4, size * 0.32);
+        ctx.fillStyle = C.treeLeafDark;
+        ctx.fillRect(-size * 0.5, -size * 0.35, size * 0.26, size * 0.22);
+        ctx.fillRect(size * 0.22, -size * 0.36, size * 0.24, size * 0.2);
+        ctx.fillStyle = C.treeTrunkDark;
+        ctx.fillRect(-size * 0.16, -size * 0.05, size * 0.32, size * 0.42);
+        ctx.fillStyle = C.treeTrunk;
+        ctx.fillRect(-size * 0.12, -size * 0.02, size * 0.24, size * 0.38);
+        ctx.restore();
+      };
+      for (const deco of s.scenery) {
+        if (deco.type === 'tree' && RS.Util.onScreen(deco.x, deco.y, s)) drawTree(deco);
+      }
       ctx.strokeStyle = C.border;
       ctx.lineWidth = 4;
       ctx.strokeRect(0, 0, MAP, MAP);
