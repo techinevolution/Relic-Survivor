@@ -17,6 +17,7 @@
   - [ ] Tweak cadence: track per-boomerang timers so a full volley stays active; consider XP-seek behavior when no enemies remain.
 - [x] Bow: convert projectiles to triangles and add extra arrows per rank.
 - [ ] Magnet Rune: scale pickup radius per rank; Rank 5 spawns consumable vacuum droplet that collects all XP.
+- [ ] Lightstone of Wisdom: ensure damage multiplier applies to all weapons and surfaces in pause stats.
 - [ ] Design boomerang augment relic that increases boomerang pickup radius per rank.
 
 - [ ] Skybrand: scale chain count with ranks; Rank 5 adds fork chance per jump.
