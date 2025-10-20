@@ -115,7 +115,9 @@
       BAT_SURGE_S: 240,
       GOBLIN_START_S: 300,
       GOBLIN_BASE_PERIOD_S: 9,
-      GOBLIN_MIN_PERIOD_S: 4
+      GOBLIN_MIN_PERIOD_S: 4,
+      MAGNET_BASE: 60,
+      MAGNET_RADIUS: [96, 132, 168, 210, 260]
     },
     ENEMIES: {
       slime: { hp: 10, speed: 80, damage: 8, xp: 5, splitCount: 2 },
@@ -210,11 +212,11 @@
     sword: { enabled: false, timer: 0, cooldown: 1.15, dmg: 20, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 },
     bomb: { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 },
     wake: { enabled: false, level: 0, life: 0.22 },
-    boomerang: { count: 1, cooldown: 0.75, timer: 0, speed: 460, range: 320, damage: 16 },
+    boomerang: { count: 1, cooldown: 0.75, speed: 460, range: 320, damage: 16, timers: [], collectRadius: 18, maxCount: 6 },
     atkSpeed: 1.0,
     leechRate: 0.0,
     leechPool: 0.0,
-    enemies: [], projs: [], boomerangs: [], orbs: [], heals: [], bombs: [], placedBombs: [], bolts: [], trails: [],
+    enemies: [], projs: [], boomerangs: [], orbs: [], heals: [], bombs: [], placedBombs: [], bolts: [], trails: [], vacuumDrops: [],
     spinnerAcc: new WeakMap(),
     spawnTimer: 0,
     batTimer: RS.Config.BALANCE.BAT_BASE_PERIOD_S,
@@ -253,6 +255,7 @@
     bow: '🏹',
     pierce: '➳',
     boomerang: '🪃',
+    hook: '🪝',
     storm: '⚡',
     magnet: '🧲',
     bead: '💗',
@@ -568,13 +571,8 @@
       desc: '+rings & blades; wider coverage',
       max: 5,
       onPick(s) {
-        const rings = s.spinner.rings;
-        const wasEmpty = rings.length === 0;
-        if (rings.length === 0)      rings.push({ count: 1, radius: 58,  speed: 2.2, angle: 0 });
-        else if (rings.length === 1) rings.push({ count: 1, radius: 82,  speed: 2.8, angle: 0 });
-        else if (rings.length === 2) rings.push({ count: 1, radius: 106, speed: 1.8, angle: 0 });
-        else                         rings.forEach(r => r.count += 1);
-        if (wasEmpty) RS.Systems.addWeaponToSlots(s, 'spinner');
+        if (s.spinner.rings.length === 0) RS.Systems.addWeaponToSlots(s, 'spinner');
+        RS.Systems.updateSpinnerProfile(s);
       }
     },
     {
@@ -609,8 +607,17 @@
       desc: '+1 boomerang; cooldown ↓',
       max: 5,
       onPick(s) {
-        s.boomerang.count += 1;
-        s.boomerang.cooldown = Math.max(0.45, s.boomerang.cooldown - 0.05);
+        RS.Systems.updateBoomerangProfile(s);
+      }
+    },
+    {
+      id: 'hook',
+      name: 'Skyhook Resonance',
+      desc: 'Returning blades scoop wider pickups',
+      max: 5,
+      canOffer: (s) => (s.levels.boomerang || 0) >= 1,
+      onPick(s) {
+        RS.Systems.updateBoomerangProfile(s);
       }
     },
     {
@@ -631,9 +638,7 @@
       max: 5,
       onPick(s) {
         if (!s.storm.enabled) { s.storm.enabled = true; s.storm.timer = 0.4; RS.Systems.addWeaponToSlots(s, 'storm'); }
-        s.storm.chains += 1;
-        s.storm.cooldown = Math.max(1.6, s.storm.cooldown - 0.2);
-        s.storm.dmg += 6;
+        RS.Systems.updateStormProfile(s);
       }
     },
     {
@@ -641,7 +646,10 @@
       name: 'Magnet Rune',
       desc: 'XP pickup radius ↑',
       max: 5,
-      onPick(s) { s.player.pickup += 20; }
+      onPick(s) {
+        RS.Systems.updateMagnetProfile(s);
+        if ((s.levels.magnet || 0) === 5) RS.Systems.spawnVacuumDrop(s);
+      }
     },
     {
       id: 'bead',
@@ -676,8 +684,8 @@
       canOffer: (s) => (s.levels.spinner || 0) >= 5 && s.player.level >= 5,
       onPick(s) {
         if (!s.wake.enabled) s.wake.enabled = true;
-        s.wake.level += 1;
-        s.wake.life = Math.min(0.26 + 0.05 * (s.wake.level - 1), 0.7);
+        s.wake.level = (s.levels.wake || 0);
+        RS.Systems.updateWakeProfile(s);
       }
     },
     {
@@ -973,6 +981,27 @@
     manualEligible(weapon) {
       return [ 'boomerang', 'sword', 'bow', 'storm', 'bomb' ].includes(weapon);
     },
+    updateBoomerangProfile(s) {
+      const rank = Math.max(1, s.levels.boomerang || 1);
+      const countByRank = [1, 2, 3, 4, 5, 6];
+      s.boomerang.count = countByRank[Math.min(rank - 1, countByRank.length - 1)];
+      const baseCooldown = 0.75;
+      const cooldownStep = 0.06;
+      s.boomerang.cooldown = Math.max(0.35, baseCooldown - (rank - 1) * cooldownStep);
+      const augmentRank = s.levels.hook ?? 0;
+      const augmentStep = 6;
+      s.boomerang.collectRadius = 18 + augmentRank * augmentStep;
+      this.ensureBoomerangTimers(s);
+    },
+    ensureBoomerangTimers(s) {
+      const data = s.boomerang;
+      data.timers = data.timers || [];
+      const desired = data.count;
+      for (let i = 0; i < desired; i++) {
+        if (!data.timers[i]) data.timers[i] = { timer: 0, waitingManual: false };
+      }
+      if (data.timers.length > desired) data.timers.length = desired;
+    },
     ensureWeaponSlots(s) {
       if (!Array.isArray(s.weaponSlots) || s.weaponSlots.length !== 6) {
         s.weaponSlots = [ 'boomerang', null, null, null, null, null ];
@@ -1010,6 +1039,74 @@
       if (!aim || aim.weapon !== weapon) return null;
       s.manualAim = null;
       return aim;
+    },
+    updateMagnetProfile(s) {
+      const radii = RS.Config.BALANCE.MAGNET_RADIUS || [];
+      const rank = s.levels.magnet || 0;
+      if (rank <= 0) { s.player.pickup = RS.Config.BALANCE.MAGNET_BASE || 60; return; }
+      const pickup = radii[Math.min(rank - 1, radii.length - 1)] || radii[radii.length - 1] || (RS.Config.BALANCE.MAGNET_BASE || 60);
+      s.player.pickup = pickup;
+    },
+    spawnVacuumDrop(s) {
+      s.vacuumDrops.push({ x: s.player.x, y: s.player.y, t: 0, life: 12, pulse: 0 });
+    },
+    collectAllXp(s) {
+      let total = 0;
+      for (const o of s.orbs) total += o.v;
+      s.orbs.length = 0;
+      if (total > 0) {
+        s.player.xp += total * s.player.xpGain;
+        while (s.player.xp + RS.Config.BALANCE.XP_EPS >= s.player.xpTo) {
+          const from = s.player.level;
+          s.player.xp -= s.player.xpTo;
+          s.player.level += 1;
+          const nextLevel = s.player.level;
+          const mult = nextLevel <= 10 ? 1.22 : 1.12;
+          const add = nextLevel <= 10 ? 8 : 4;
+          s.player.xpTo = Math.floor(s.player.xpTo * mult + add);
+          RS.State.levelUpFrom = from;
+          RS.State.levelUpTo = s.player.level;
+          RS.UI.rollChoices();
+        }
+      }
+    },
+    updateStormProfile(s) {
+      const rank = s.levels.storm || 0;
+      const baseChains = 2;
+      s.storm.chains = baseChains + Math.max(0, rank - 1);
+      s.storm.cooldown = Math.max(1.6, 3.0 - Math.max(0, rank - 1) * 0.25);
+      s.storm.dmg = 34 + Math.max(0, rank - 1) * 6;
+      s.storm.forkChance = rank >= 5 ? 0.35 : 0;
+    },
+    updateSpinnerProfile(s) {
+      const rank = s.levels.spinner || 0;
+      const count = Math.min(5, Math.max(0, rank));
+      const prevAngle = s.spinner.rings[0]?.angle || 0;
+      if (count <= 0) {
+        s.spinner.rings.length = 0;
+        return;
+      }
+      const radiusBase = 58;
+      const radiusStep = 12;
+      const radius = radiusBase + Math.max(0, count - 1) * radiusStep;
+      const speedBase = 2.2;
+      const speedStep = 0.22;
+      s.spinner.rings = [
+        { count, radius, speed: speedBase + (count - 1) * speedStep, angle: prevAngle }
+      ];
+      s.spinner.dmg = 12 + Math.max(0, rank - 1) * 3;
+    },
+    updateWakeProfile(s) {
+      const rank = s.levels.wake || 0;
+      s.wake.level = rank;
+      const baseLife = 0.22;
+      if (rank <= 0) {
+        s.wake.life = baseLife;
+        s.wake.maxTrails = 160;
+        return;
+      }
+      s.wake.life = Math.min(baseLife + 0.06 * rank, 0.78);
+      s.wake.maxTrails = 160 + rank * 80;
     },
     onDamage(dealt, s) {
       s.stats.damageDealt += dealt;
@@ -1145,15 +1242,23 @@
     },
     spawnBoomerang(s, opts = {}) {
       const data = s.boomerang;
+      const slot = opts.slot ?? null;
       let angle;
-      if (opts && typeof opts.angle === 'number') {
+      let aimPoint = null;
+      if (typeof opts.angle === 'number') {
         angle = opts.angle;
-      } else if (opts && opts.target) {
-        angle = Math.atan2(opts.target.y - s.player.y, opts.target.x - s.player.x);
+      } else if (opts.target) {
+        aimPoint = opts.target;
+        angle = Math.atan2(aimPoint.y - s.player.y, aimPoint.x - s.player.x);
       } else {
         let target = nearestEnemyTo(s.player.x, s.player.y, s.enemies, data.range);
         if (target) {
+          aimPoint = { x: target.x, y: target.y };
           angle = Math.atan2(target.y - s.player.y, target.x - s.player.x);
+        } else if (s.orbs.length) {
+          const orb = [...s.orbs].sort((a, b) => RS.Util.dist2(a.x, a.y, s.player.x, s.player.y) - RS.Util.dist2(b.x, b.y, s.player.x, s.player.y))[0];
+          aimPoint = { x: orb.x, y: orb.y };
+          angle = Math.atan2(orb.y - s.player.y, orb.x - s.player.x);
         } else {
           s.boomerangAngle = (s.boomerangAngle || 0) + Math.PI / 3;
           angle = s.boomerangAngle;
@@ -1180,23 +1285,42 @@
         spinSpeed: (Math.random() < 0.5 ? -1 : 1) * 18,
         elite: false,
         hasLeftPlayer: false,
-        born: s.elapsed
+        born: s.elapsed,
+        slot,
+        aimPoint,
+        manual: !!opts.manual
       });
       s.stats.boomerangsThrown++;
     },
     boomerang(dt, s) {
       const data = s.boomerang;
-      const isManual = s.manualWeapon === 'boomerang';
-      data.timer -= dt * s.atkSpeed;
-      if (!isManual && data.timer <= 0 && s.boomerangs.length < data.count) {
-        this.spawnBoomerang(s);
-        data.timer = data.cooldown;
-      }
-      if (isManual && data.timer <= 0 && s.boomerangs.length < data.count) {
-        const cmd = RS.Systems.takeManualCommand(s, 'boomerang');
-        if (cmd) {
-          this.spawnBoomerang(s, { target: { x: cmd.x, y: cmd.y } });
-          data.timer = data.cooldown;
+      const manualMode = s.manualWeapon === 'boomerang';
+      this.ensureBoomerangTimers(s);
+      let manualCmd = null;
+      for (let i = 0; i < data.timers.length; i++) {
+        const slot = data.timers[i];
+        if (!slot) continue;
+        if (slot.timer > 0) {
+          slot.timer = Math.max(0, slot.timer - dt * s.atkSpeed);
+        }
+        if (!manualMode) slot.waitingManual = false;
+        const hasActive = s.boomerangs.some(b => b.slot === i);
+        if (slot.timer <= 0 && !hasActive) {
+          if (manualMode) {
+            if (!manualCmd) manualCmd = RS.Systems.takeManualCommand(s, 'boomerang');
+            if (manualCmd) {
+              this.spawnBoomerang(s, { target: { x: manualCmd.x, y: manualCmd.y }, slot: i, manual: true });
+              slot.timer = data.cooldown;
+              slot.waitingManual = false;
+              manualCmd = null;
+            } else {
+              slot.waitingManual = true;
+            }
+          } else {
+            this.spawnBoomerang(s, { slot: i });
+            slot.timer = data.cooldown;
+            slot.waitingManual = false;
+          }
         }
       }
       const startReturn = (b) => {
@@ -1249,14 +1373,15 @@
 
         for (let j = s.orbs.length - 1; j >= 0; j--) {
           const o = s.orbs[j];
-          if (RS.Util.dist2(b.x, b.y, o.x, o.y) < 18 * 18) {
+          if (RS.Util.dist2(b.x, b.y, o.x, o.y) < data.collectRadius * data.collectRadius) {
             b.carryXp += o.v;
             s.orbs.splice(j, 1);
           }
         }
         for (let j = s.heals.length - 1; j >= 0; j--) {
           const h = s.heals[j];
-          if (RS.Util.dist2(b.x, b.y, h.x, h.y) < 18 * 18) {
+          if (s.player.hearts >= s.player.maxHearts) continue;
+          if (RS.Util.dist2(b.x, b.y, h.x, h.y) < data.collectRadius * data.collectRadius) {
             b.carryHeals += 1;
             s.heals.splice(j, 1);
           }
@@ -1291,6 +1416,10 @@
             b.carryHeals--;
           }
           s.boomerangs.splice(i, 1);
+          if (b.slot != null && data.timers[b.slot]) {
+            data.timers[b.slot].timer = Math.max(0, data.timers[b.slot].timer);
+            data.timers[b.slot].waitingManual = manualMode && data.timers[b.slot].timer <= 0;
+          }
         }
       }
     },
@@ -1378,7 +1507,8 @@
           const by = s.player.y + Math.sin(ang) * ring.radius;
           if (s.wake.enabled) {
             s.trails.push({ x: bx, y: by, r: 9, t: 0, life: s.wake.life });
-            if (s.trails.length > 360) s.trails.splice(0, s.trails.length - 360);
+            const maxTrail = s.wake.maxTrails || 320;
+            if (s.trails.length > maxTrail) s.trails.splice(0, s.trails.length - maxTrail);
           }
           for (let i = s.enemies.length - 1; i >= 0; i--) {
             const e = s.enemies[i];
@@ -1475,34 +1605,43 @@
       const isManual = s.manualWeapon === 'storm';
       s.storm.timer -= dt * s.atkSpeed;
       const castChain = (startEnemy) => {
-        let cur = startEnemy;
-        if (!cur) return false;
-        let from = { x: s.player.x, y: s.player.y };
+        if (!startEnemy) { s.storm.timer = s.storm.cooldown; return false; }
         const visited = new Set();
-        let chainsLeft = s.storm.chains;
-        while (cur && chainsLeft >= 0) {
-          s.bolts.push({ x1: from.x, y1: from.y, x2: cur.x, y2: cur.y, t: 0, life: 0.6, flash: 0.18 });
-          RS.Systems.applyDamage(cur, RS.Systems.effDamage(s.storm.dmg, s), s);
-          visited.add(cur);
-          from = { x: cur.x, y: cur.y };
-          cur = nearestEnemyTo(from.x, from.y, s.enemies.filter(e => !visited.has(e)), 240);
-          chainsLeft--;
+        const queue = [{ from: { x: s.player.x, y: s.player.y }, target: startEnemy, chainsLeft: s.storm.chains }];
+        let anyHit = false;
+        while (queue.length) {
+          const { from, target, chainsLeft } = queue.shift();
+          if (!target || visited.has(target)) continue;
+          anyHit = true;
+          s.bolts.push({ x1: from.x, y1: from.y, x2: target.x, y2: target.y, t: 0, life: 0.6, flash: 0.18 });
+          RS.Systems.applyDamage(target, RS.Systems.effDamage(s.storm.dmg, s), s);
+          visited.add(target);
+          if (chainsLeft <= 0) continue;
+          const pool = s.enemies.filter(e => !visited.has(e));
+          if (!pool.length) continue;
+          const next = nearestEnemyTo(target.x, target.y, pool, 240);
+          if (next) queue.push({ from: { x: target.x, y: target.y }, target: next, chainsLeft: chainsLeft - 1 });
+          if (s.storm.forkChance > 0 && Math.random() < s.storm.forkChance) {
+            const altPool = pool.filter(e => e !== next);
+            if (altPool.length) {
+              const alt = nearestEnemyTo(target.x, target.y, altPool, 240);
+              if (alt) queue.push({ from: { x: target.x, y: target.y }, target: alt, chainsLeft: chainsLeft - 1 });
+            }
+          }
         }
-        s.stats.boltsCast++;
+        if (anyHit) s.stats.boltsCast++;
         s.storm.timer = s.storm.cooldown;
-        return true;
+        return anyHit;
       };
       if (!isManual && s.storm.timer <= 0) {
-        let cur = nearestEnemyTo(s.player.x, s.player.y, s.enemies, s.storm.range);
-        if (cur) castChain(cur);
-        else s.storm.timer = s.storm.cooldown;
+        const cur = nearestEnemyTo(s.player.x, s.player.y, s.enemies, s.storm.range);
+        if (!castChain(cur)) s.storm.timer = s.storm.cooldown;
       }
       if (isManual && s.storm.timer <= 0) {
         const cmd = RS.Systems.takeManualCommand(s, 'storm');
         if (cmd) {
           const target = nearestEnemyTo(cmd.x, cmd.y, s.enemies, s.storm.range);
-          if (target) castChain(target);
-          else s.storm.timer = s.storm.cooldown;
+          if (!castChain(target)) s.storm.timer = s.storm.cooldown;
         }
       }
       for (let i = s.bolts.length - 1; i >= 0; i--) {
@@ -1594,6 +1733,17 @@
           s.heals.splice(i, 1);
         }
       }
+      for (let i = s.vacuumDrops.length - 1; i >= 0; i--) {
+        const drop = s.vacuumDrops[i];
+        drop.t += dt;
+        drop.pulse = (drop.pulse || 0) + dt;
+        if (drop.t >= drop.life) { s.vacuumDrops.splice(i, 1); continue; }
+        const dist = Math.hypot(drop.x - s.player.x, drop.y - s.player.y);
+        if (dist < s.player.r + 20) {
+          s.vacuumDrops.splice(i, 1);
+          RS.Systems.collectAllXp(s);
+        }
+      }
     },
     cleanupDeaths(s) {
       for (let i = s.enemies.length - 1; i >= 0; i--) {
@@ -1682,7 +1832,7 @@
         level: 1, xp: 0, xpTo: 20, xpGain: 1,
         facing: 0
       });
-      s.enemies.length = s.projs.length = s.orbs.length = s.heals.length = s.bombs.length = s.placedBombs.length = s.bolts.length = s.trails.length = 0;
+      s.enemies.length = s.projs.length = s.orbs.length = s.heals.length = s.bombs.length = s.placedBombs.length = s.bolts.length = s.trails.length = s.vacuumDrops.length = 0;
       s.boomerangs.length = 0;
       s.spinner.rings.length = 0;
       s.spinner.dmg = 12;
@@ -1691,7 +1841,7 @@
       Object.assign(s.bow,   { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 });
       Object.assign(s.bomb,  { enabled: false, timer: 0, cooldown: 6.0, dmg: 50, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0] * 1.15, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0 });
       Object.assign(s.storm, { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 });
-      Object.assign(s.boomerang, { count: 1, cooldown: 0.75, timer: 0, speed: 460, range: 320, damage: 16 });
+      Object.assign(s.boomerang, { count: 1, cooldown: 0.75, speed: 460, range: 320, damage: 16, timers: [], collectRadius: 18, maxCount: 6 });
       s.boomerangAngle = 0;
       for (const k in s.levels) s.levels[k] = 0;
       s.levels.boomerang = 1;
@@ -1728,6 +1878,11 @@
       }
       RS.UI.uiButtons = [];
       RS.UI.showLevelModal(false);
+      RS.Systems.updateBoomerangProfile(s);
+      RS.Systems.updateMagnetProfile(s);
+      RS.Systems.updateStormProfile(s);
+      RS.Systems.updateSpinnerProfile(s);
+      if (s.wake.enabled) RS.Systems.updateWakeProfile(s);
     }
   };
 
@@ -2134,11 +2289,29 @@
         ctx.restore();
         ctx.save();
         ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.beginPath();
-        ctx.ellipse(h.x, h.y + 8, 6 * scale, 2.6 * scale, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      }
+      ctx.beginPath();
+      ctx.ellipse(h.x, h.y + 8, 6 * scale, 2.6 * scale, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // Vacuum drops
+    for (const v of RS.State.vacuumDrops) {
+      const pulse = 0.6 + 0.4 * Math.sin((v.pulse || 0) * 3.2);
+      const radius = 16 + pulse * 6;
+      ctx.save();
+      ctx.translate(v.x, v.y);
+      ctx.beginPath();
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(96,165,250,${0.18 + 0.14 * pulse})`;
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(0, 0, Math.max(6, radius * 0.45), 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(191,219,254,${0.4 + 0.3 * pulse})`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.restore();
+    }
 
       // Enemies + health bars
       for (const e of RS.State.enemies) RS.Registry.Enemies[e.type].draw(e, ctx, RS.State);
@@ -2356,22 +2529,47 @@
       const getCooldown = (id) => {
         switch (id) {
           case 'boomerang': {
-            const remain = Math.max(0, s.boomerang.timer || 0);
+            const timers = s.boomerang.timers || [];
             const cooldown = Math.max(0.001, s.boomerang.cooldown || 0.001);
-            const blocked = s.boomerangs.length >= s.boomerang.count;
-            const fraction = blocked ? 1 : Math.min(1, remain / cooldown);
-            return { fraction, blocked };
+            if (!timers.length) return { fraction: 0, blocked: false, ready: true, remain: 0, cooldown };
+            const remainList = timers.map(t => Math.max(0, t?.timer || 0));
+            const minRemain = Math.min(...remainList);
+            const readySlots = timers.filter(t => (t?.timer || 0) <= 0.0001).length;
+            const blocked = readySlots === 0 && s.boomerangs.length >= s.boomerang.count;
+            return {
+              fraction: Math.min(1, minRemain / cooldown),
+              blocked,
+              ready: readySlots > 0,
+              remain: minRemain,
+              cooldown
+            };
           }
           case 'sword':
-            return { fraction: Math.min(1, Math.max(0, (s.sword.timer || 0) / Math.max(0.001, s.sword.cooldown || 0.001))) };
+            return (() => {
+              const remain = Math.max(0, s.sword.timer || 0);
+              const cooldown = Math.max(0.001, s.sword.cooldown || 0.001);
+              return { fraction: Math.min(1, remain / cooldown), blocked: false, ready: remain <= 0.001, remain, cooldown };
+            })();
           case 'bow':
-            return { fraction: Math.min(1, Math.max(0, (s.bow.timer || 0) / Math.max(0.001, s.bow.cooldown || 0.001))) };
+            return (() => {
+              const remain = Math.max(0, s.bow.timer || 0);
+              const cooldown = Math.max(0.001, s.bow.cooldown || 0.001);
+              return { fraction: Math.min(1, remain / cooldown), blocked: false, ready: remain <= 0.001, remain, cooldown };
+            })();
           case 'storm':
-            return { fraction: Math.min(1, Math.max(0, (s.storm.timer || 0) / Math.max(0.001, s.storm.cooldown || 0.001))) };
+            return (() => {
+              const remain = Math.max(0, s.storm.timer || 0);
+              const cooldown = Math.max(0.001, s.storm.cooldown || 0.001);
+              return { fraction: Math.min(1, remain / cooldown), blocked: false, ready: remain <= 0.001, remain, cooldown };
+            })();
           case 'bomb':
-            return { fraction: Math.min(1, Math.max(0, (s.bomb.timer || 0) / Math.max(0.001, s.bomb.cooldown || 0.001))) };
+            return (() => {
+              const remain = Math.max(0, s.bomb.timer || 0);
+              const cooldown = Math.max(0.001, s.bomb.cooldown || 0.001);
+              return { fraction: Math.min(1, remain / cooldown), blocked: false, ready: remain <= 0.001, remain, cooldown };
+            })();
           default:
-            return { fraction: 0 };
+            return { fraction: 0, blocked: false, ready: true, remain: 0, cooldown: 1 };
         }
       };
       for (let i = 0; i < slots.length; i++) {
@@ -2397,7 +2595,9 @@
         ctx.font = '28px ui-sans-serif,system-ui';
         ctx.fillStyle = '#f8fafc';
         ctx.fillText(icon, cx, cy + 1);
-        const { fraction, blocked } = getCooldown(weaponId);
+        const info = getCooldown(weaponId);
+        const fraction = info.fraction ?? 0;
+        const blocked = !!info.blocked;
         if (fraction > 0.001) {
           ctx.beginPath();
           ctx.moveTo(cx, cy);
@@ -2405,6 +2605,15 @@
           ctx.closePath();
           ctx.fillStyle = blocked ? 'rgba(12,12,24,0.6)' : 'rgba(0,0,0,0.38)';
           ctx.fill();
+        }
+        if (weaponId === 'boomerang' && isManual) {
+          const anyWaiting = (s.boomerang.timers || []).some(t => t?.waitingManual);
+          if (anyWaiting) {
+            ctx.beginPath();
+            ctx.fillStyle = '#fde68a';
+            ctx.arc(cx, cy + radius - 8, 4, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
         ctx.restore();
       }
@@ -2468,6 +2677,9 @@
       ];
       const wx = x + 18, wy = y + 82;
       ctx.textAlign = 'left';
+      ctx.font = '12px ui-sans-serif,system-ui';
+      ctx.fillStyle = '#a5b4fc';
+      ctx.fillText(`Global Damage ×${s.player.damageMult.toFixed(2)}`, wx, wy - 12);
       ctx.font = '14px ui-sans-serif,system-ui';
       ctx.fillStyle = '#e2e8f0';
       ctx.fillText('Weapons', wx, wy);

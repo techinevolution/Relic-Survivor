@@ -67,7 +67,7 @@
 - **Magnet Rune**
   - Ranks 1-4: widen pickup radius steadily.
   - Rank 5: spawn a limited-use vacuum drop that pulls all XP on the field when collected.
-- **Boomerang Augment (future relic)**
+- **Skyhook Resonance (boomerang augment)**
   - Unlock bonus that boosts boomerang pickup radius per rank, so returned blades sweep wider XP arcs.
 
 - **Interface Modes**

@@ -33,7 +33,7 @@
 - Preserve this flow when adding features so future agents can scan the file quickly.
 
 ## Game State & Systems
-- `RS.State` holds core run-time data: mode (`attract`, `menu`, `playing`, etc.), timers, player stats, arrays for enemies/projectiles/resources, and upgrade tracking (`levels`, `currentChoices`).
+- `RS.State` holds core run-time data: mode (`attract`, `menu`, `playing`, etc.), timers, player stats, arrays for enemies/projectiles/resources (including `vacuumDrops` spawned by high-rank Magnet Rune), and upgrade tracking (`levels`, `currentChoices`).
 - `RS.Systems` houses per-frame logic. Update order in the main loop is fixed: input → spawner → enemies → weapon systems (`spinner`, `bow`, `storm`, `bomb`) → cleanup → pickups → regen. If adding systems (e.g., a new weapon), follow this pattern and hook in at the correct position.
 - Balance tuning flows through `RS.Config.BALANCE`; keep new constants there rather than scattering numeric literals.
 - Player inventory and stats are reset via `RS.Systems.restart`. Extend that function whenever new persistent state is introduced.
@@ -57,6 +57,7 @@
 ## Economy & Progression
 - XP gems (`s.orbs`) award progress toward `player.xpTo`; level-ups trigger `RS.UI.rollChoices` which pauses the game and surfaces 1–3 relic options.
 - Damage, rate-of-fire, cooldowns, and leeching factors flow through `RS.Systems.effDamage`, `timeScale`, and upgrade callbacks. Reuse these helpers when creating new effects (e.g., apply damage via `RS.Systems.applyDamage` so leech tracking stays correct).
+- Magnet Rune rank 5 spawns a `vacuumDrop` pickup that instantly harvests all loose XP orbs when collected.
 - Enemy spawns ramp using elapsed time (`s.elapsed`). When adding difficulty curves, extend `RS.Systems.spawner` and its timers rather than re-implementing elsewhere.
 
 ## Testing & Debugging

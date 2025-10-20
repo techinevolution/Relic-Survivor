@@ -15,17 +15,17 @@
 - [ ] Add click feedback + range cues for manual weapons (reticle, “no target” hint) to help players learn the mode.
 - [ ] Implement compact auto bar for full-auto runs; enforce active-weapon cap once weapon roster expands.
 
-- [ ] Boomerang: add volley count per rank and ignore heart pickups at full health (bug regression check).
-  - [ ] Tweak cadence: track per-boomerang timers so a full volley stays active; consider XP-seek behavior when no enemies remain.
+- [x] Boomerang: add volley count per rank and ignore heart pickups at full health (bug regression check).  ✅ per-slot launchers keep volleys live.
+  - [x] Tweak cadence: track per-boomerang timers so a full volley stays active; consider XP-seek behavior when no enemies remain.  ✅ boomerangs fan to XP when no targets.
 - [x] Bow: convert projectiles to triangles and add extra arrows per rank.
-- [ ] Magnet Rune: scale pickup radius per rank; Rank 5 spawns consumable vacuum droplet that collects all XP.
-- [ ] Lightstone of Wisdom: ensure damage multiplier applies to all weapons and surfaces in pause stats.
-- [ ] Design boomerang augment relic that increases boomerang pickup radius per rank.
+- [x] Magnet Rune: scale pickup radius per rank; Rank 5 spawns consumable vacuum droplet that collects all XP.  ✅ radius tiers + Skywell orb pickup.
+- [x] Lightstone of Wisdom: ensure damage multiplier applies to all weapons and surfaces in pause stats.  ✅ pause panel shows current multiplier.
+- [x] Design boomerang augment relic that increases boomerang pickup radius per rank.  ✅ Skyhook Resonance relic boosts scoop radius.
 
-- [ ] Skybrand: scale chain count with ranks; Rank 5 adds fork chance per jump.
+- [x] Skybrand: scale chain count with ranks; Rank 5 adds fork chance per jump.  ✅ chains scale; fork sparks at rank 5.
 - [x] Bombbloom: halve base explosion radius/visual, expand bomb counts per rank, Rank 5 restores wide blast.  (Base radius toned down & scales, trail-only rank ups.)
-- [ ] Spinner/Wake: cap blades at five; scale wake length with rank.
-- [ ] Tempo Charm: ensure each weapon’s cadence responds to the relic’s attack-speed bonus.
+- [x] Spinner/Wake: cap blades at five; scale wake length with rank.  ✅ single ring tops at five blades; wake trail length grows with rank.
+- [x] Tempo Charm: ensure each weapon’s cadence responds to the relic’s attack-speed bonus.  ✅ all cadence timers now respect atkSpeed multiplier.
 
 ## Enemies & Encounters
 - [ ] Slimes: add delay before split children become targetable/damageable.
