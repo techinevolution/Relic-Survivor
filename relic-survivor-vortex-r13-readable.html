@@ -80,7 +80,8 @@
     COLORS: {
       spinner: '#78b8ff',
       spinnerTrail: 'rgba(120,184,255,VAR)',
-      bolt: 'rgba(190,120,255,VAR)',
+      bolt: 'rgba(120,70,220,VAR)',
+      boltLinger: 'rgba(60,30,120,VAR)',
       xpBar: '#5cc9ff',
       hudBar: '#333',
       hudText: '#ddd',
@@ -1348,7 +1349,7 @@
         if (cur) {
           let from = { x: s.player.x, y: s.player.y }, visited = new Set(), chainsLeft = s.storm.chains;
           while (cur && chainsLeft >= 0) {
-            s.bolts.push({ x1: from.x, y1: from.y, x2: cur.x, y2: cur.y, t: 0, life: 0.12 });
+            s.bolts.push({ x1: from.x, y1: from.y, x2: cur.x, y2: cur.y, t: 0, life: 0.6, flash: 0.18 });
             RS.Systems.applyDamage(cur, RS.Systems.effDamage(s.storm.dmg, s), s);
             visited.add(cur);
             from = { x: cur.x, y: cur.y };
@@ -1872,13 +1873,42 @@
 
       // Lightning bolts
       for (const sbolt of RS.State.bolts) {
-        const a = 1 - sbolt.t / sbolt.life;
-        ctx.strokeStyle = RS.Config.COLORS.bolt.replace('VAR', a.toString());
-        ctx.lineWidth = 2 + 2 * a;
-        ctx.beginPath();
-        ctx.moveTo(sbolt.x1, sbolt.y1);
-        ctx.lineTo(sbolt.x2, sbolt.y2);
-        ctx.stroke();
+        const flashDur = sbolt.flash ?? Math.min(0.2, sbolt.life * 0.5);
+        const lingerDur = Math.max(0, sbolt.life - flashDur);
+        const { x1, y1, x2, y2 } = sbolt;
+        ctx.save();
+        ctx.lineCap = 'round';
+
+        if (flashDur > 0) {
+          const flashProgress = Math.min(1, sbolt.t / flashDur);
+          const flashAlpha = Math.max(0, 1 - flashProgress);
+          if (flashAlpha > 0.001) {
+            const alphaValue = (0.85 * flashAlpha).toFixed(3);
+            ctx.strokeStyle = RS.Config.COLORS.bolt.replace('VAR', alphaValue);
+            ctx.lineWidth = 4.5 + 4 * flashAlpha;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+          }
+        }
+
+        if (lingerDur > 0) {
+          const lingerElapsed = Math.max(0, sbolt.t - flashDur);
+          const lingerProgress = Math.min(1, lingerElapsed / lingerDur);
+          const lingerAlpha = Math.max(0, 1 - lingerProgress);
+          if (lingerAlpha > 0.001) {
+            const alphaValue = (0.45 * lingerAlpha).toFixed(3);
+            ctx.strokeStyle = RS.Config.COLORS.boltLinger.replace('VAR', alphaValue);
+            ctx.lineWidth = 2.2 + 1.8 * lingerAlpha;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+          }
+        }
+
+        ctx.restore();
       }
 
       // XP orbs
