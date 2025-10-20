@@ -11,7 +11,7 @@
 ## Weapons & Relics
 - [x] Sword: implement tiered arc growth (45° → 180° by max rank).
 - [x] Sword: replace the translucent wedge with a visible blade sweep that travels across the current rank’s arc.
-- [x] Implement action bar overlay with cooldowns, selection highlight, and per-weapon auto toggles (manual/hybrid mode).  ✅ action bar live with manual toggles.
+- [x] Implement dock-style action bar with cooldown wipes and pause/scroll-based manual weapon selection.  ✅ icons auto-fill slots; manual weapon is unique.
 - [ ] Add click feedback + range cues for manual weapons (reticle, “no target” hint) to help players learn the mode.
 - [ ] Implement compact auto bar for full-auto runs; enforce active-weapon cap once weapon roster expands.
 
