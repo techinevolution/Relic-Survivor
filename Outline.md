@@ -40,10 +40,11 @@
 - **Global Rules**
   - Weapon rank-ups change behavior/coverage only (no per-weapon damage or attack-speed scaling).
   - Global relics handle universal damage, attack speed, and utility boosts.
-  - Projectiles (boomerang, bow, skybrand) originate from the player’s facing, within a 180° frontal cone.
+  - Projectile weapons auto-target nearby threats regardless of player facing; only the sword keys off movement direction.
 - **Sword (Brambleblade)**
   - Rank 1: 45° strike.
   - Each rank widens the arc until 180° at max rank.
+  - Visual: conjure a blade in front of the survivor that sweeps across the active arc with a bright trail so the hit zone reads clearly.
 - **Boomerang (Skyhook Loop)**
   - Each rank adds another boomerang in the volley.
   - Each boomerang will run an independent timer so the screen can stay busy; add logic to seek XP drops only when no enemies are nearby.
@@ -70,7 +71,7 @@
   - Unlock bonus that boosts boomerang pickup radius per rank, so returned blades sweep wider XP arcs.
 
 - **Interface Modes**
-  - **Action Bar** (manual/hybrid): weapon icons run along the bottom center with radial cooldowns, auto toggles, and a gold highlight for the selected weapon. Left-click fires the highlighted weapon toward cursor/facing while respecting cooldown floors.
+- **Action Bar** (manual/hybrid) — live in Arcade/Adventure builds: weapon icons run along the bottom center with cooldown bars, auto toggles, and a highlight for the selected weapon. Left-click fires the highlighted weapon toward cursor/facing while respecting cooldown floors.
   - **Compact Auto Bar** (survivor-style): shrunk icons summarise owned weapons when full auto is preferred. Cap simultaneous weapons (e.g., 4 main + 2 utility) once new gear is added.
 
 ## Enemies & Encounters

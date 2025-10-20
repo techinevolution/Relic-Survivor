@@ -6,11 +6,13 @@
 - [ ] Draft Adventure Mode structure: stage list, unlock flow, and onboarding beats.
 - [ ] Decide on persistence stack (localStorage primary, JSON export/import secondary) and design reset/export UX.
 - [x] Update global combat rules so weapon rank-ups modify patterns only; shift damage/attack-speed scaling to global relics.  ✅ sword/bow/bomb now pattern-only.
-- [x] Rework projectile systems (boomerang, bow, skybrand) to respect the player’s 180° facing cone and current facing direction.  ✅ bow/boomerang done; skybrand pending.
+- [ ] Recenter projectile feel now that facing lock is gone; make sure boomerang, bow, and skybrand targeting reads clearly without directional input.
 
 ## Weapons & Relics
 - [x] Sword: implement tiered arc growth (45° → 180° by max rank).
-- [ ] Implement action bar overlay with cooldowns, selection highlight, and per-weapon auto toggles (manual/hybrid mode).
+- [x] Sword: replace the translucent wedge with a visible blade sweep that travels across the current rank’s arc.
+- [x] Implement action bar overlay with cooldowns, selection highlight, and per-weapon auto toggles (manual/hybrid mode).  ✅ action bar live with manual toggles.
+- [ ] Add click feedback + range cues for manual weapons (reticle, “no target” hint) to help players learn the mode.
 - [ ] Implement compact auto bar for full-auto runs; enforce active-weapon cap once weapon roster expands.
 
 - [ ] Boomerang: add volley count per rank and ignore heart pickups at full health (bug regression check).
@@ -61,4 +63,4 @@
 - [ ] Investigate modular build pipeline if single-file structure becomes limiting.
 - [ ] Consider accessibility options (colorblind outlines, screen shake toggle) while revamping art and VFX.
 - [ ] Evaluate WebGL-backed renderer (Pixi.js/Three.js) if Canvas performance becomes a bottleneck after art/VFX updates.
-- [ ] Prototype optional manual weapon controls so players can click-to-attack or toggle individual weapons between auto/manual fire.
+- [x] Prototype optional manual weapon controls so players can click-to-attack or toggle individual weapons between auto/manual fire.

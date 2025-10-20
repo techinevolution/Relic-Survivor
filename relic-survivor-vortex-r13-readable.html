@@ -162,6 +162,17 @@
         x > camX - 20 && x < camX + W + 20 &&
         y > camY - 20 && y < camY + H + 20
       );
+    },
+    screenToWorld(mx, my, st) {
+      const camX = st.player.x - RS.Config.W / 2;
+      const camY = st.player.y - RS.Config.H / 2;
+      const map = RS.Config.MAP;
+      const worldX = camX + mx;
+      const worldY = camY + my;
+      return {
+        x: Math.max(0, Math.min(map, worldX)),
+        y: Math.max(0, Math.min(map, worldY))
+      };
     }
   };
 
@@ -211,6 +222,9 @@
     goblinAmbushDone: false,
     boomerangAngle: 0,
     keys: {},
+    weaponModes: { sword: 'auto', boomerang: 'auto', bow: 'auto', storm: 'auto', bomb: 'auto' },
+    selectedWeapon: 'boomerang',
+    manualQueue: [],
     currentChoices: null,
     levelUpFrom: null,
     levelUpTo: null
@@ -941,6 +955,28 @@
   RS.Systems = {
     timeScale(s) { return 1 + (s.elapsed / 60) * RS.Config.BALANCE.DMG_PER_MIN; },
     effDamage(base, s) { return base * s.player.damageMult * this.timeScale(s); },
+    weaponAvailable(s, weapon) {
+      switch (weapon) {
+        case 'sword': return s.sword.enabled;
+        case 'boomerang': return true;
+        case 'bow': return s.bow.enabled;
+        case 'storm': return s.storm.enabled;
+        case 'bomb': return s.bomb.enabled;
+        default: return false;
+      }
+    },
+    queueManual(s, weapon, x, y) {
+      if (!Array.isArray(s.manualQueue)) s.manualQueue = [];
+      const existing = s.manualQueue.findIndex(cmd => cmd.weapon === weapon);
+      if (existing !== -1) s.manualQueue.splice(existing, 1);
+      s.manualQueue.push({ weapon, x, y });
+    },
+    takeManualCommand(s, weapon) {
+      if (!Array.isArray(s.manualQueue)) return null;
+      const idx = s.manualQueue.findIndex(cmd => cmd.weapon === weapon);
+      if (idx === -1) return null;
+      return s.manualQueue.splice(idx, 1)[0];
+    },
     onDamage(dealt, s) {
       s.stats.damageDealt += dealt;
       if (s.leechRate > 0 && s.player.hearts < s.player.maxHearts) s.leechPool += dealt * s.leechRate;
@@ -1073,15 +1109,21 @@
         }
       }
     },
-    spawnBoomerang(s) {
+    spawnBoomerang(s, opts = {}) {
       const data = s.boomerang;
-      let target = nearestEnemyTo(s.player.x, s.player.y, s.enemies, data.range);
       let angle;
-      if (target) {
-        angle = Math.atan2(target.y - s.player.y, target.x - s.player.x);
+      if (opts && typeof opts.angle === 'number') {
+        angle = opts.angle;
+      } else if (opts && opts.target) {
+        angle = Math.atan2(opts.target.y - s.player.y, opts.target.x - s.player.x);
       } else {
-        s.boomerangAngle = (s.boomerangAngle || 0) + Math.PI / 3;
-        angle = s.boomerangAngle;
+        let target = nearestEnemyTo(s.player.x, s.player.y, s.enemies, data.range);
+        if (target) {
+          angle = Math.atan2(target.y - s.player.y, target.x - s.player.x);
+        } else {
+          s.boomerangAngle = (s.boomerangAngle || 0) + Math.PI / 3;
+          angle = s.boomerangAngle;
+        }
       }
       const dirX = Math.cos(angle);
       const dirY = Math.sin(angle);
@@ -1110,10 +1152,18 @@
     },
     boomerang(dt, s) {
       const data = s.boomerang;
+      const mode = (s.weaponModes && s.weaponModes.boomerang) || 'auto';
       data.timer -= dt * s.atkSpeed;
-      if (data.timer <= 0 && s.boomerangs.length < data.count) {
+      if (mode !== 'manual' && data.timer <= 0 && s.boomerangs.length < data.count) {
         this.spawnBoomerang(s);
         data.timer = data.cooldown;
+      }
+      if (mode === 'manual' && data.timer <= 0 && s.boomerangs.length < data.count) {
+        const cmd = RS.Systems.takeManualCommand(s, 'boomerang');
+        if (cmd) {
+          this.spawnBoomerang(s, { target: { x: cmd.x, y: cmd.y } });
+          data.timer = data.cooldown;
+        }
       }
       const startReturn = (b) => {
         if (b.stage === 'return') return;
@@ -1213,8 +1263,29 @@
     sword(dt, s) {
       const sw = s.sword;
       if (!sw.enabled) return;
+      const mode = (s.weaponModes && s.weaponModes.sword) || 'auto';
       sw.timer -= dt * s.atkSpeed;
-      if (sw.timer <= 0) {
+      const addSwing = (angle) => {
+        const arc = sw.arc || Math.PI;
+        const halfArc = arc / 2;
+        const start = angle - halfArc;
+        const end = angle + halfArc;
+        sw.swings.push({
+          t: 0,
+          life: sw.duration,
+          angle,
+          reach: sw.reach,
+          arc,
+          start,
+          end,
+          span: end - start,
+          hit: new WeakSet()
+        });
+        sw.timer = sw.cooldown;
+        s.stats.swordSwings += 1;
+        sw.lastAngle = angle;
+      };
+      if (mode !== 'manual' && sw.timer <= 0) {
         if (!sw.angleSeed) sw.angleSeed = 0;
         let angle;
         if (typeof s.player.facing === 'number') {
@@ -1225,14 +1296,26 @@
           sw.angleSeed += Math.PI / 3;
           angle = sw.angleSeed;
         }
-        sw.lastAngle = angle;
-        sw.swings.push({ t: 0, life: sw.duration, angle, reach: sw.reach, arc: sw.arc || Math.PI, hit: new WeakSet() });
-        sw.timer = sw.cooldown;
-        s.stats.swordSwings += 1;
+        addSwing(angle);
+      }
+      if (mode === 'manual' && sw.timer <= 0) {
+        const cmd = RS.Systems.takeManualCommand(s, 'sword');
+        if (cmd) {
+          const angle = Math.atan2(cmd.y - s.player.y, cmd.x - s.player.x);
+          addSwing(angle);
+        }
       }
       for (let i = sw.swings.length - 1; i >= 0; i--) {
         const swing = sw.swings[i];
         swing.t += dt;
+        const arc = swing.arc || Math.PI;
+        const halfArc = arc / 2;
+        const progress = Math.min(1, swing.t / swing.life);
+        const ease = 1 - Math.pow(1 - progress, 2);
+        const coverage = arc * ease;
+        swing.covered = coverage;
+        const maxDiff = -halfArc + coverage;
+        const tolerance = 0.08 + 0.08 * (1 - ease);
         for (let j = s.enemies.length - 1; j >= 0; j--) {
           const e = s.enemies[j];
           if (swing.hit.has(e)) continue;
@@ -1243,10 +1326,10 @@
           const angToEnemy = Math.atan2(dy, dx);
           let diff = angToEnemy - swing.angle;
           diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-          if (Math.abs(diff) <= ((swing.arc || Math.PI) / 2)) {
-            RS.Systems.applyDamage(e, RS.Systems.effDamage(sw.dmg, s), s);
-            swing.hit.add(e);
-          }
+          if (diff < -halfArc - tolerance) continue;
+          if (diff > maxDiff + tolerance) continue;
+          RS.Systems.applyDamage(e, RS.Systems.effDamage(sw.dmg, s), s);
+          swing.hit.add(e);
         }
         if (swing.t >= swing.life) sw.swings.splice(i, 1);
       }
@@ -1294,31 +1377,43 @@
     },
     bow(dt, s) {
       if (!s.bow.enabled) return;
+      const mode = (s.weaponModes && s.weaponModes.bow) || 'auto';
       s.bow.timer -= dt * s.atkSpeed;
-      if (s.bow.timer <= 0 && s.enemies.length) {
+      const fireVolley = (angle) => {
+        const volleys = s.bow.arrows;
+        const spread = RS.Config.WEAPONS.bow.spread ?? 0.08;
+        for (let k = 0; k < volleys; k++) {
+          const jitter = (k - (volleys - 1) / 2) * spread;
+          const ang = angle + jitter;
+          s.projs.push({
+            x: s.player.x, y: s.player.y,
+            vx: Math.cos(ang) * s.bow.speed,
+            vy: Math.sin(ang) * s.bow.speed,
+            dmg: s.bow.dmg, life: s.bow.life, pierce: s.bow.pierce,
+            hitSet: new Set(),
+            shape: 'arrow',
+            heading: ang,
+            length: 14,
+            width: 4,
+            r: 4
+          });
+          s.stats.arrowsFired++;
+        }
+        s.bow.timer = s.bow.cooldown;
+      };
+      if (mode !== 'manual' && s.bow.timer <= 0 && s.enemies.length) {
         const target = [...s.enemies].sort((a, b) => RS.Util.dist2(a.x, a.y, s.player.x, s.player.y) - RS.Util.dist2(b.x, b.y, s.player.x, s.player.y))[0];
         if (target) {
-          const volleys = s.bow.arrows;
-          const spread = RS.Config.WEAPONS.bow.spread ?? 0.08;
-          for (let k = 0; k < volleys; k++) {
-            const jitter = (k - (volleys - 1) / 2) * spread;
-            const dx = target.x - s.player.x, dy = target.y - s.player.y;
-            const ang = Math.atan2(dy, dx) + jitter;
-            s.projs.push({
-              x: s.player.x, y: s.player.y,
-              vx: Math.cos(ang) * s.bow.speed,
-              vy: Math.sin(ang) * s.bow.speed,
-              dmg: s.bow.dmg, life: s.bow.life, pierce: s.bow.pierce,
-              hitSet: new Set(),
-              shape: 'arrow',
-              heading: ang,
-              length: 14,
-              width: 4,
-              r: 4
-            });
-            s.stats.arrowsFired++;
-          }
-          s.bow.timer = s.bow.cooldown;
+          const dx = target.x - s.player.x, dy = target.y - s.player.y;
+          const ang = Math.atan2(dy, dx);
+          fireVolley(ang);
+        }
+      }
+      if (mode === 'manual' && s.bow.timer <= 0) {
+        const cmd = RS.Systems.takeManualCommand(s, 'bow');
+        if (cmd) {
+          const ang = Math.atan2(cmd.y - s.player.y, cmd.x - s.player.x);
+          fireVolley(ang);
         }
       }
       for (let i = s.projs.length - 1; i >= 0; i--) {
@@ -1343,22 +1438,40 @@
     },
     storm(dt, s) {
       if (!s.storm.enabled) return;
+      const mode = (s.weaponModes && s.weaponModes.storm) || 'auto';
       s.storm.timer -= dt * s.atkSpeed;
-      if (s.storm.timer <= 0) {
-        let cur = nearestEnemyTo(s.player.x, s.player.y, s.enemies, s.storm.range);
-        if (cur) {
-          let from = { x: s.player.x, y: s.player.y }, visited = new Set(), chainsLeft = s.storm.chains;
-          while (cur && chainsLeft >= 0) {
-            s.bolts.push({ x1: from.x, y1: from.y, x2: cur.x, y2: cur.y, t: 0, life: 0.6, flash: 0.18 });
-            RS.Systems.applyDamage(cur, RS.Systems.effDamage(s.storm.dmg, s), s);
-            visited.add(cur);
-            from = { x: cur.x, y: cur.y };
-            cur = nearestEnemyTo(from.x, from.y, s.enemies.filter(e => !visited.has(e)), 240);
-            chainsLeft--;
-          }
-          s.stats.boltsCast++;
+      const castChain = (startEnemy) => {
+        let cur = startEnemy;
+        if (!cur) return false;
+        let from = { x: s.player.x, y: s.player.y };
+        const visited = new Set();
+        let chainsLeft = s.storm.chains;
+        while (cur && chainsLeft >= 0) {
+          s.bolts.push({ x1: from.x, y1: from.y, x2: cur.x, y2: cur.y, t: 0, life: 0.6, flash: 0.18 });
+          RS.Systems.applyDamage(cur, RS.Systems.effDamage(s.storm.dmg, s), s);
+          visited.add(cur);
+          from = { x: cur.x, y: cur.y };
+          cur = nearestEnemyTo(from.x, from.y, s.enemies.filter(e => !visited.has(e)), 240);
+          chainsLeft--;
         }
+        s.stats.boltsCast++;
         s.storm.timer = s.storm.cooldown;
+        return true;
+      };
+      if (mode !== 'manual' && s.storm.timer <= 0) {
+        let cur = nearestEnemyTo(s.player.x, s.player.y, s.enemies, s.storm.range);
+        if (cur) castChain(cur);
+        else s.storm.timer = s.storm.cooldown;
+      }
+      if (mode === 'manual' && s.storm.timer <= 0 && Array.isArray(s.manualQueue)) {
+        const idx = s.manualQueue.findIndex(cmd => cmd.weapon === 'storm');
+        if (idx !== -1) {
+          const cmd = s.manualQueue[idx];
+          const target = nearestEnemyTo(cmd.x, cmd.y, s.enemies, s.storm.range);
+          if (target && castChain(target)) {
+            s.manualQueue.splice(idx, 1);
+          }
+        }
       }
       for (let i = s.bolts.length - 1; i >= 0; i--) {
         const b = s.bolts[i];
@@ -1368,15 +1481,25 @@
     },
     bomb(dt, s) {
       if (s.bomb.enabled) {
+        const mode = (s.weaponModes && s.weaponModes.bomb) || 'auto';
         s.bomb.timer -= dt * s.atkSpeed;
-        if (s.bomb.timer <= 0) {
+        if (mode !== 'manual' && s.bomb.timer <= 0) {
           s.placedBombs.push({ x: s.player.x, y: s.player.y, timer: 0, fuse: s.bomb.fuse });
           s.bomb.timer = s.bomb.cooldown;
           s.stats.bombsPlaced++;
           s.bomb.trailLeft = s.bomb.trail;
           s.bomb.trailTimer = s.bomb.trailGap;
         }
-        if (s.bomb.trailLeft > 0) {
+        if (mode === 'manual' && s.bomb.timer <= 0) {
+          const cmd = RS.Systems.takeManualCommand(s, 'bomb');
+          if (cmd) {
+            s.placedBombs.push({ x: cmd.x, y: cmd.y, timer: 0, fuse: s.bomb.fuse });
+            s.bomb.timer = s.bomb.cooldown;
+            s.stats.bombsPlaced++;
+            s.bomb.trailLeft = 0;
+          }
+        }
+        if (mode !== 'manual' && s.bomb.trailLeft > 0) {
           s.bomb.trailTimer -= dt * s.atkSpeed;
           if (s.bomb.trailTimer <= 0) {
             s.placedBombs.push({ x: s.player.x, y: s.player.y, timer: 0, fuse: s.bomb.fuse });
@@ -1551,6 +1674,9 @@
       s.batTimer = RS.Config.BALANCE.BAT_BASE_PERIOD_S;
       s.goblinTimer = RS.Config.BALANCE.GOBLIN_BASE_PERIOD_S;
       s.goblinAmbushDone = false;
+      s.weaponModes = { sword: 'auto', boomerang: 'auto', bow: 'auto', storm: 'auto', bomb: 'auto' };
+      s.manualQueue = [];
+      s.selectedWeapon = 'boomerang';
       RS.State.mode = 'playing';
       if (s.gameplayMode === 'adventure') {
         s.modeLabel = 'Adventure Mode (WIP)';
@@ -1587,17 +1713,29 @@
   // =====================================
   RS.UI = {
     uiButtons: [],
+    hotspots: [],
     addBtn(x, y, w, h, label, action, opts) {
       const passive = !!(opts && opts.passive);
       RS.Render.drawButton(x, y, w, h, label, passive);
       if (!passive && typeof action === 'function') this.uiButtons.push({ x, y, w, h, label, action });
     },
+    addHotspot(x, y, w, h, action) {
+      if (typeof action === 'function') this.hotspots.push({ x, y, w, h, action });
+    },
     click(ev) {
-      const r = cvs.getBoundingClientRect();
-      const mx = ev.clientX - r.left, my = ev.clientY - r.top;
+      const rect = cvs.getBoundingClientRect();
+      const scaleX = rect.width ? cvs.width / rect.width : 1;
+      const scaleY = rect.height ? cvs.height / rect.height : 1;
+      const mx = (ev.clientX - rect.left) * scaleX;
+      const my = (ev.clientY - rect.top) * scaleY;
       for (const b of RS.UI.uiButtons) {
-        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { b.action(); return; }
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { b.action(); return true; }
       }
+      for (let i = RS.UI.hotspots.length - 1; i >= 0; i--) {
+        const h = RS.UI.hotspots[i];
+        if (mx >= h.x && mx <= h.x + h.w && my >= h.y && my <= h.y + h.h) { h.action(); return true; }
+      }
+      return false;
     },
     showLevelModal(show) { levelModal.classList.toggle('show', !!show && !RS.State.gameOver); },
     setChoices(items) { RS.State.currentChoices = items; RS.UI.renderChoices(); },
@@ -1647,8 +1785,22 @@
   };
 
   cvs.addEventListener('click', (ev) => {
-    if (RS.State.mode === 'attract') { RS.State.mode = 'menu'; return; }
-    RS.UI.click(ev);
+    const s = RS.State;
+    if (s.mode === 'attract') { s.mode = 'menu'; return; }
+    if (RS.UI.click(ev)) return;
+    if (s.mode !== 'playing' || s.paused || s.gameOver || s.currentChoices) return;
+    const rect = cvs.getBoundingClientRect();
+    const scaleX = rect.width ? cvs.width / rect.width : 1;
+    const scaleY = rect.height ? cvs.height / rect.height : 1;
+    const mx = (ev.clientX - rect.left) * scaleX;
+    const my = (ev.clientY - rect.top) * scaleY;
+    const weapon = s.selectedWeapon;
+    if (!weapon) return;
+    if ((s.weaponModes[weapon] || 'auto') !== 'manual') return;
+    if (!RS.Systems.weaponAvailable(s, weapon)) return;
+    const target = RS.Util.screenToWorld(mx, my, s);
+    RS.Systems.queueManual(s, weapon, target.x, target.y);
+    s.player.facing = Math.atan2(target.y - s.player.y, target.x - s.player.x);
   });
 
   // =====================================
@@ -1980,24 +2132,70 @@
 
       // Sword swings
       for (const swing of s.sword.swings) {
+        const arc = swing.arc || Math.PI;
+        const span = swing.span ?? arc;
+        const start = swing.start ?? (swing.angle - span / 2);
         const progress = Math.min(1, swing.t / swing.life);
+        const ease = 1 - Math.pow(1 - progress, 2);
         const fade = 1 - progress;
-        const halfArc = (swing.arc || Math.PI) / 2;
-        const start = swing.angle - halfArc;
-        const end = swing.angle + halfArc;
+        const currentAngle = start + span * ease;
+        const px = s.player.x;
+        const py = s.player.y;
+        const reach = swing.reach;
+
         ctx.beginPath();
-        ctx.moveTo(s.player.x, s.player.y);
-        ctx.arc(s.player.x, s.player.y, swing.reach, start, end);
+        ctx.moveTo(px, py);
+        ctx.arc(px, py, reach, start, currentAngle);
         ctx.closePath();
-        ctx.fillStyle = `rgba(236,244,208,${0.28 * fade})`;
+        ctx.fillStyle = `rgba(128,102,232,${0.12 + 0.22 * fade})`;
         ctx.fill();
-        ctx.strokeStyle = `rgba(250,252,240,${0.55 * fade})`;
-        ctx.lineWidth = 3;
+
+        ctx.strokeStyle = `rgba(236,228,255,${0.38 + 0.32 * fade})`;
+        ctx.lineWidth = 2.4;
         ctx.beginPath();
-        ctx.moveTo(s.player.x, s.player.y);
-        ctx.arc(s.player.x, s.player.y, swing.reach, start, end);
-        ctx.closePath();
+        ctx.arc(px, py, reach, start, currentAngle);
         ctx.stroke();
+
+        const tipX = px + Math.cos(currentAngle) * reach;
+        const tipY = py + Math.sin(currentAngle) * reach;
+        ctx.beginPath();
+        ctx.arc(tipX, tipY, 5 + 3 * fade, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(254,250,255,${0.45 + 0.4 * fade})`;
+        ctx.fill();
+
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(currentAngle);
+
+        const gripLength = 18;
+        const gripOffset = Math.max(8, reach * 0.12);
+        const gripStart = gripOffset - gripLength * 0.25;
+        const guardThickness = 5;
+        const guardHalf = 11;
+        const bladeStart = gripStart + gripLength + guardThickness * 0.6;
+        const bladeEnd = reach;
+        const bladeWidth = 10;
+
+        ctx.fillStyle = '#3f2b1d';
+        ctx.fillRect(gripStart, -3.5, gripLength, 7);
+
+        ctx.fillStyle = '#d2b067';
+        ctx.fillRect(gripStart + gripLength, -guardHalf, guardThickness, guardHalf * 2);
+
+        ctx.beginPath();
+        ctx.moveTo(bladeStart, -bladeWidth / 2);
+        ctx.lineTo(bladeEnd - 8, -bladeWidth * 0.35);
+        ctx.lineTo(bladeEnd, 0);
+        ctx.lineTo(bladeEnd - 8, bladeWidth * 0.35);
+        ctx.lineTo(bladeStart, bladeWidth / 2);
+        ctx.closePath();
+        ctx.fillStyle = '#f4f6ff';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(206,196,255,0.9)';
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+
+        ctx.restore();
       }
 
       // Spinner blades
@@ -2101,7 +2299,173 @@
       ctx.font = '12px ui-sans-serif,system-ui';
       ctx.textAlign = 'right';
       ctx.fillText('P for Pause', RS.Config.W - 10, 22);
+      RS.Render.weaponBar();
       ctx.textAlign = 'start';
+    },
+    weaponBar() {
+      const s = RS.State;
+      const modes = s.weaponModes || {};
+      const { W, H } = RS.Config;
+      const WEAPONS = RS.Config.WEAPONS;
+      const entries = [
+        {
+          id: 'sword',
+          name: WEAPONS.sword.name,
+          icon: RS.Registry.ICON.sword || '🗡️',
+          available: s.sword.enabled,
+          timer: s.sword.timer ?? 0,
+          cooldown: s.sword.cooldown ?? 0.001
+        },
+        {
+          id: 'boomerang',
+          name: WEAPONS.boomerang.name,
+          icon: RS.Registry.ICON.boomerang || '🪃',
+          available: true,
+          timer: s.boomerang.timer ?? 0,
+          cooldown: s.boomerang.cooldown ?? 0.001,
+          extraReady: () => s.boomerangs.length < s.boomerang.count,
+          blockedLabel: 'In flight'
+        },
+        {
+          id: 'bow',
+          name: WEAPONS.bow.name,
+          icon: RS.Registry.ICON.bow || '🏹',
+          available: s.bow.enabled,
+          timer: s.bow.timer ?? 0,
+          cooldown: s.bow.cooldown ?? 0.001
+        },
+        {
+          id: 'storm',
+          name: WEAPONS.storm.name,
+          icon: RS.Registry.ICON.storm || '⚡',
+          available: s.storm.enabled,
+          timer: s.storm.timer ?? 0,
+          cooldown: s.storm.cooldown ?? 0.001
+        },
+        {
+          id: 'bomb',
+          name: WEAPONS.bomb.name,
+          icon: RS.Registry.ICON.bomb || '💣',
+          available: s.bomb.enabled,
+          timer: s.bomb.timer ?? 0,
+          cooldown: s.bomb.cooldown ?? 0.001
+        }
+      ];
+      const slotH = 66;
+      const slotW = 208;
+      const gap = 12;
+      const totalW = entries.length * slotW + (entries.length - 1) * gap;
+      const startX = Math.max(12, (W - totalW) / 2);
+      const baseY = H - slotH - 28;
+      ctx.save();
+      ctx.fillStyle = 'rgba(5,12,5,0.78)';
+      ctx.fillRect(startX - 18, baseY - 18, totalW + 36, slotH + 34);
+      ctx.strokeStyle = 'rgba(56,142,95,0.35)';
+      ctx.strokeRect(startX - 18, baseY - 18, totalW + 36, slotH + 34);
+      ctx.restore();
+      const manualActive = Object.values(modes).some(m => m === 'manual');
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const slotX = startX + i * (slotW + gap);
+        const available = !!entry.available;
+        const mode = modes[entry.id] || 'auto';
+        const isManual = mode === 'manual';
+        const isSelected = s.selectedWeapon === entry.id;
+        const cooldown = entry.cooldown <= 0 ? 0.001 : entry.cooldown;
+        const remain = Math.max(0, entry.timer || 0);
+        const pct = Math.max(0, Math.min(1, cooldown > 0 ? 1 - remain / cooldown : 1));
+        const extraReadyFn = typeof entry.extraReady === 'function' ? entry.extraReady : null;
+        const extraReady = extraReadyFn ? extraReadyFn() : true;
+        const blockedLabel = entry.blockedLabel || 'Recharge';
+        const ready = (entry.timer ?? 0) <= 0 && extraReady;
+        const status = !available
+          ? 'Locked'
+          : ready
+            ? 'Ready'
+            : extraReady
+              ? `${(Math.round(remain * 10) / 10).toFixed(1)}s`
+              : blockedLabel;
+        ctx.fillStyle = available ? 'rgba(15,23,42,0.78)' : 'rgba(12,12,12,0.45)';
+        ctx.fillRect(slotX, baseY, slotW, slotH);
+        if (isManual && available) {
+          ctx.fillStyle = 'rgba(52,211,153,0.18)';
+          ctx.fillRect(slotX, baseY, slotW, slotH);
+        }
+        ctx.lineWidth = isSelected ? 2 : 1;
+        ctx.strokeStyle = isSelected ? '#34d399' : (available ? 'rgba(56,92,66,0.55)' : 'rgba(71,85,105,0.6)');
+        ctx.strokeRect(slotX, baseY, slotW, slotH);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.font = '26px ui-sans-serif,system-ui';
+        ctx.fillStyle = available ? '#f1f5f9' : '#6b7280';
+        ctx.fillText(entry.icon, slotX + 16, baseY + 30);
+        ctx.font = '13px ui-sans-serif,system-ui';
+        ctx.fillStyle = available ? '#f8fafc' : '#94a3b8';
+        ctx.fillText(entry.name, slotX + 52, baseY + 24);
+        const toggleW = 72;
+        const toggleH = 22;
+        const toggleX = slotX + slotW - toggleW - 14;
+        const toggleY = baseY + 14;
+        ctx.fillStyle = available
+          ? (isManual ? 'rgba(34,197,94,0.2)' : 'rgba(96,165,250,0.18)')
+          : 'rgba(55,65,81,0.34)';
+        ctx.fillRect(toggleX, toggleY, toggleW, toggleH);
+        ctx.strokeStyle = available
+          ? (isManual ? '#22c55e' : '#60a5fa')
+          : 'rgba(75,85,99,0.7)';
+        ctx.strokeRect(toggleX, toggleY, toggleW, toggleH);
+        ctx.font = '11px ui-sans-serif,system-ui';
+        ctx.fillStyle = available ? '#f8fafc' : '#9ca3af';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(isManual ? 'Manual' : 'Auto', toggleX + toggleW / 2, toggleY + toggleH / 2 + 1);
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        const barX = slotX + 16;
+        const barY = baseY + slotH - 18;
+        const barW = slotW - 32;
+        const barH = 10;
+        ctx.fillStyle = 'rgba(12,20,12,0.8)';
+        ctx.fillRect(barX, barY, barW, barH);
+        ctx.fillStyle = ready ? '#34d399' : (available ? '#60a5fa' : '#1f2937');
+        ctx.fillRect(barX, barY, barW * (available ? pct : 0), barH);
+        ctx.strokeStyle = 'rgba(56,92,66,0.65)';
+        ctx.strokeRect(barX, barY, barW, barH);
+        ctx.font = '11px ui-sans-serif,system-ui';
+        ctx.fillStyle = available ? '#cbd5f5' : '#64748b';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(status, barX + barW / 2, barY + barH + 2);
+        const queued = Array.isArray(s.manualQueue) && s.manualQueue.some(cmd => cmd.weapon === entry.id);
+        if (queued) {
+          ctx.beginPath();
+          ctx.fillStyle = '#fde68a';
+          ctx.arc(slotX + slotW - 18, barY - 8, 4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        if (available) {
+          RS.UI.addHotspot(slotX, baseY, slotW, slotH, () => { s.selectedWeapon = entry.id; });
+          RS.UI.addHotspot(toggleX, toggleY, toggleW, toggleH, () => {
+            const current = modes[entry.id] || 'auto';
+            const next = current === 'manual' ? 'auto' : 'manual';
+            s.weaponModes[entry.id] = next;
+            if (next === 'manual') {
+              s.selectedWeapon = entry.id;
+            } else if (Array.isArray(s.manualQueue)) {
+              s.manualQueue = s.manualQueue.filter(cmd => cmd.weapon !== entry.id);
+            }
+          });
+        }
+      }
+      if (manualActive) {
+        ctx.font = '12px ui-sans-serif,system-ui';
+        ctx.fillStyle = '#e2e8f0';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText('Manual mode: click the arena to attack with the highlighted weapon.', W / 2, baseY - 6);
+      }
+      ctx.textAlign = 'start';
+      ctx.textBaseline = 'alphabetic';
     },
     modeBanner() {
       const s = RS.State;
@@ -2512,11 +2876,12 @@
 
   function draw() {
     const s = RS.State;
+    RS.UI.uiButtons = [];
+    RS.UI.hotspots = [];
     if ([ 'attract', 'menu', 'how', 'options', 'credits', 'codex', 'playSelect' ].includes(s.mode)) { RS.Render.attract(); return; }
     RS.Render.world();
     RS.Render.hud();
     RS.Render.modeBanner();
-    RS.UI.uiButtons = [];
     if (s.paused && !s.gameOver && !s.currentChoices) RS.Render.pause();
     if (s.gameOver) RS.Render.death();
   }

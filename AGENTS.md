@@ -51,7 +51,7 @@
 
 ## Input Handling
 - Movement keys funnel through `RS.State.keys` with lowercase lookups. Keyboard listeners prevent-default on arrow keys and space, and special keys drive meta actions: `P` pause, `R` restart, `M` jump to menu.
-- Mouse clicks are currently used for UI buttons (pause/menu overlays) via `RS.UI.addBtn` hit boxes and for accepting relics through DOM buttons. Touch support does not exist yet—plan to mirror pointer logic when requested.
+- Mouse clicks drive canvas UI buttons (pause/menu overlays), manual weapon aiming (when a weapon is set to Manual via the action bar), and level-up choices via DOM buttons. Touch support does not exist yet—plan to mirror pointer logic when requested.
 - Keep input capture centralized in the existing listeners; avoid adding per-feature listeners scattered across the file.
 
 ## Economy & Progression
