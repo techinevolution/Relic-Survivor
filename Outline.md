@@ -71,7 +71,7 @@
   - Unlock bonus that boosts boomerang pickup radius per rank, so returned blades sweep wider XP arcs.
 
 - **Interface Modes**
-- **Action Bar** (manual/hybrid) — live in Arcade/Adventure builds: weapon icons run along the bottom center with cooldown bars, auto toggles, and a highlight for the selected weapon. Left-click fires the highlighted weapon toward cursor/facing while respecting cooldown floors.
+- **Action Bar** (manual/hybrid) — live in Arcade/Adventure builds: dock-style icon strip with six slots, sweep-to-ready cooldown wipes, and a gold outline on the Manual weapon. Manual selection now happens via pause menu clicks or the scroll wheel while playing; left-clicking the arena still fires the active Manual weapon.
   - **Compact Auto Bar** (survivor-style): shrunk icons summarise owned weapons when full auto is preferred. Cap simultaneous weapons (e.g., 4 main + 2 utility) once new gear is added.
 
 ## Enemies & Encounters
