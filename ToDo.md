@@ -12,6 +12,7 @@
 - [x] Sword: implement tiered arc growth (45° → 180° by max rank).
 - [x] Sword: replace the translucent wedge with a visible blade sweep that travels across the current rank’s arc.
 - [x] Implement dock-style action bar with cooldown wipes and pause/scroll-based manual weapon selection.  ✅ icons auto-fill slots; manual weapon is unique.
+- [x] Manual weapon mode support confirmed live in current build.
 - [ ] Add click feedback + range cues for manual weapons (reticle, “no target” hint) to help players learn the mode.
 - [ ] Implement compact auto bar for full-auto runs; enforce active-weapon cap once weapon roster expands.
 
@@ -21,11 +22,16 @@
 - [x] Magnet Rune: scale pickup radius per rank; Rank 5 spawns consumable vacuum droplet that collects all XP.  ✅ radius tiers + Skywell orb pickup.
 - [x] Lightstone of Wisdom: ensure damage multiplier applies to all weapons and surfaces in pause stats.  ✅ pause panel shows current multiplier.
 - [x] Design boomerang augment relic that increases boomerang pickup radius per rank.  ✅ Skyhook Resonance relic boosts scoop radius.
+- [ ] Revisit Skyhook Loop auto-fire: launch full volley simultaneously at unique targets, lengthen base cooldown, and retune cooldown rune impact.
+- [ ] Gate Skyhook Resonance unlock behind Boomerang rank 5; reassess collect radius per rank once gating lands.
 
 - [x] Skybrand: scale chain count with ranks; Rank 5 adds fork chance per jump.  ✅ chains scale; fork sparks at rank 5.
 - [x] Bombbloom: halve base explosion radius/visual, expand bomb counts per rank, Rank 5 restores wide blast.  (Base radius toned down & scales, trail-only rank ups.)
 - [x] Spinner/Wake: cap blades at five; scale wake length with rank.  ✅ single ring tops at five blades; wake trail length grows with rank.
 - [x] Tempo Charm: ensure each weapon’s cadence responds to the relic’s attack-speed bonus.  ✅ all cadence timers now respect atkSpeed multiplier.
+- [ ] Bombbloom manual mode: convert to thrown projectile that travels toward click point before arming/exploding.
+- [ ] Spinner manual mode: prototype press-and-hold expansion with retract-on-release behavior.
+- [ ] Magnet Rune vacuum drop: make Skywell orbs spawn from rank 1 with low chance (0.01%) and scale frequency to 0.03% by rank 5; balance against heart spawn rate.
 
 ## Enemies & Encounters
 - [ ] Slimes: add delay before split children become targetable/damageable.

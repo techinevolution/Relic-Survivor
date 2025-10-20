@@ -46,9 +46,9 @@
   - Each rank widens the arc until 180° at max rank.
   - Visual: conjure a blade in front of the survivor that sweeps across the active arc with a bright trail so the hit zone reads clearly.
 - **Boomerang (Skyhook Loop)**
-  - Each rank adds another boomerang in the volley.
-  - Each boomerang will run an independent timer so the screen can stay busy; add logic to seek XP drops only when no enemies are nearby.
-  - Boomerang ignores heart pickups unless the player is missing health.
+  - Auto mode: eventually launch the full volley simultaneously at unique targets, then idle for a longer cooldown (lets cooldown relics matter again).
+  - Manual mode: keep rapid one-at-a-time throws that follow the click aim; boomerangs already seek XP when no enemies remain and skip hearts when full.
+  - Each rank adds another boomerang to the volley.
 - **Bow (Voyager Bow)**
   - Ranks add arrows.
   - Projectiles render as forward-pointing triangles.
@@ -59,16 +59,18 @@
   - Halve base explosion radius and sprite size.
   - Rank-ups increase bomb count per drop.
   - Rank 5 expansion restores large blast radius.
+  - Manual mode (future): bombs should be thrown toward the click location, traveling before arming and detonating.
 - **Spinner / Wake**
   - Cap core blades at 5 orbiting projectiles.
   - Wake trail starts short and lengthens with ranks.
+  - Manual mode concept: press/hold to expand the ring, release to retract.
 - **Tempo Charm**
   - Provides global attack-speed scaling per weapon: sword swing frequency, boomerang volleys, bow salvos, skybrand cooldown, bomb volleys, spinner rotation speed.
 - **Magnet Rune**
   - Ranks 1-4: widen pickup radius steadily.
-  - Rank 5: spawn a limited-use vacuum drop that pulls all XP on the field when collected.
+  - Vacuum drops should spawn from Rank 1 with a very low chance (~0.01%) and scale up to ~0.03% by Rank 5 so players feel the benefit early.
 - **Skyhook Resonance (boomerang augment)**
-  - Unlock bonus that boosts boomerang pickup radius per rank, so returned blades sweep wider XP arcs.
+  - Unlock bonus that boosts boomerang pickup radius per rank; plan to gate this relic behind Boomerang Rank 5.
 
 - **Interface Modes**
 - **Action Bar** (manual/hybrid) — live in Arcade/Adventure builds: dock-style icon strip with six slots, sweep-to-ready cooldown wipes, and a gold outline on the Manual weapon. Manual selection now happens via pause menu clicks or the scroll wheel while playing; left-clicking the arena still fires the active Manual weapon.
