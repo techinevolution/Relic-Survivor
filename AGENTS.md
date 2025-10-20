@@ -57,12 +57,13 @@
 ## Economy & Progression
 - XP gems (`s.orbs`) award progress toward `player.xpTo`; level-ups trigger `RS.UI.rollChoices` which pauses the game and surfaces 1–3 relic options.
 - Damage, rate-of-fire, cooldowns, and leeching factors flow through `RS.Systems.effDamage`, `timeScale`, and upgrade callbacks. Reuse these helpers when creating new effects (e.g., apply damage via `RS.Systems.applyDamage` so leech tracking stays correct).
-- Magnet Rune rank 5 spawns a `vacuumDrop` pickup that instantly harvests all loose XP orbs when collected.
+- Magnet Rune spawns low-chance `vacuumDrop` orbs (0.01% → 0.03% from rank 1→5) that pull in all loose XP when collected.
 - Enemy spawns ramp using elapsed time (`s.elapsed`). When adding difficulty curves, extend `RS.Systems.spawner` and its timers rather than re-implementing elsewhere.
 
 ## Testing & Debugging
 - Lightweight assertions exist in `RS.Tests.run`; expand this function for sanity checks (unique IDs, gating rules, math helpers).
 - `showChoices`, `hideChoices`, `toggleChoices`, and `setChoices` are dev utilities bound on `window` for manual testing. Use them during manual QA to reproduce level-up states.
+- Pause menu **Dev Mode** toggle (button beside Resume) enables invulnerability and provides +/- controls to adjust weapon & relic ranks mid-run; changes reapply the entire loadout instantly.
 - No automated test runner or CI—manual playtesting (load title, run a wave, verify relic choices, confirm death screen) remains the validation path.
 
 ## Versioning Workflow

@@ -19,11 +19,11 @@
 - [x] Boomerang: add volley count per rank and ignore heart pickups at full health (bug regression check).  ✅ per-slot launchers keep volleys live.
   - [x] Tweak cadence: track per-boomerang timers so a full volley stays active; consider XP-seek behavior when no enemies remain.  ✅ boomerangs fan to XP when no targets.
 - [x] Bow: convert projectiles to triangles and add extra arrows per rank.
-- [x] Magnet Rune: scale pickup radius per rank; Rank 5 spawns consumable vacuum droplet that collects all XP.  ✅ radius tiers + Skywell orb pickup.
+- [x] Magnet Rune: scale pickup radius per rank; add Skywell vacuum drop chance that ramps with rank.  ✅ radius tiers + rank-based 0.01%→0.03% drop rate.
 - [x] Lightstone of Wisdom: ensure damage multiplier applies to all weapons and surfaces in pause stats.  ✅ pause panel shows current multiplier.
 - [x] Design boomerang augment relic that increases boomerang pickup radius per rank.  ✅ Skyhook Resonance relic boosts scoop radius.
-- [ ] Revisit Skyhook Loop auto-fire: launch full volley simultaneously at unique targets, lengthen base cooldown, and retune cooldown rune impact.
-- [ ] Gate Skyhook Resonance unlock behind Boomerang rank 5; reassess collect radius per rank once gating lands.
+- [x] Revisit Skyhook Loop auto-fire: launch full volley simultaneously at unique targets, lengthen base cooldown, and retune cooldown rune impact.  ✅ volleys fire together after ammo recharge.
+- [x] Gate Skyhook Resonance unlock behind Boomerang rank 5; reassess collect radius per rank once gating lands.  ✅ `canOffer` now requires Boomerang Lv5.
 
 - [x] Skybrand: scale chain count with ranks; Rank 5 adds fork chance per jump.  ✅ chains scale; fork sparks at rank 5.
 - [x] Bombbloom: halve base explosion radius/visual, expand bomb counts per rank, Rank 5 restores wide blast.  (Base radius toned down & scales, trail-only rank ups.)
@@ -31,7 +31,7 @@
 - [x] Tempo Charm: ensure each weapon’s cadence responds to the relic’s attack-speed bonus.  ✅ all cadence timers now respect atkSpeed multiplier.
 - [ ] Bombbloom manual mode: convert to thrown projectile that travels toward click point before arming/exploding.
 - [ ] Spinner manual mode: prototype press-and-hold expansion with retract-on-release behavior.
-- [ ] Magnet Rune vacuum drop: make Skywell orbs spawn from rank 1 with low chance (0.01%) and scale frequency to 0.03% by rank 5; balance against heart spawn rate.
+- [x] Magnet Rune vacuum drop: make Skywell orbs spawn from rank 1 with low chance (0.01%) and scale frequency to 0.03% by rank 5; balance against heart spawn rate.  ✅ chance scales per rank (0.01% → 0.03%).
 
 ## Enemies & Encounters
 - [ ] Slimes: add delay before split children become targetable/damageable.

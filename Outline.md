@@ -94,6 +94,7 @@
 - Introduce `Data_formats.md` as the schema hub shared between HTML and potential Python tooling.
 - Document renaming of the current system to **Arcade Mode** in code comments and UI during future implementation.
 - Long-term input goal: allow manual weapon control via click-to-attack and per-weapon auto/manual toggles once Adventure work settles.
+- Pause menu Dev Mode exposes invulnerability toggle and per-relic/weapon rank controls for rapid balancing experiments.
 
 ## Open Questions
 - How are Adventure Mode stages structured (linear, branching, challenge tiers)?
