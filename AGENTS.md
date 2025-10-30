@@ -6,7 +6,7 @@
 - Pace work “slow and steady.” Flag risky refactors early and wait for approval before large rewrites.
 
 ## Project Structure
-- Active build lives at `relic-survivor-vortex-r13-readable.html` in the repo root. It contains HTML, CSS, and JS in a single file.
+- Active build lives at `index.html` in the repo root (renamed from the previous `relic-survivor-vortex-r13-readable.html`). It contains HTML, CSS, and JS in a single file.
 - `Outline.md` captures long-term direction (Adventure mode, Arcade rename, enemy plans). `ToDo.md` tracks actionable tasks—update both when scoping new work.
 - `Data_formats.md` documents schemas shared between in-game data and external tooling; keep it accurate when introducing persistence, new enemies, or balance tables.
 - `AGENTS.md` remains the collaboration playbook.
@@ -67,7 +67,7 @@
 - No automated test runner or CI—manual playtesting (load title, run a wave, verify relic choices, confirm death screen) remains the validation path.
 
 ## Versioning Workflow
-- Increment versions by copying the current HTML file to a new filename (e.g., `relic-survivor-vortex-r14-readable.html`) before major changes. Keep the previous version alongside it for rollback—there is no `archive/` folder yet.
+- Increment versions by copying `index.html` to a versioned filename (e.g., `relic-survivor-vortex-r14-readable.html`) before major changes. Keep the previous version alongside it for rollback—there is no `archive/` folder yet.
 - Note feature goals and outstanding bugs in `AGENTS.md` until separate docs are introduced; include dates so the history stays clear.
 - When submitting work, summarize gameplay-facing changes for Katherine first, then add implementation notes for future agents.
 
