@@ -120,18 +120,18 @@
       MAGNET_RADIUS: [96, 132, 168, 210, 260]
     },
     ENEMIES: {
-      slime: { hp: 10, speed: 80, damage: 8, xp: 5, splitCount: 2 },
-      slimeMini: { hp: 5, speed: 90, damage: 6, xp: 2 },
-      bat: { hp: 12, speed: 120, damage: 12, xp: 6 },
-      goblin: { hp: 120, speed: 160, damage: 20, xp: 18 }
+      slime: { hp: 12, speed: 80, damage: 0.5, xp: 5, splitCount: 2, splitDelay: 0.75 },
+      slimeMini: { hp: 6, speed: 90, damage: 0.5, xp: 2 },
+      bat: { hp: 12, speed: 120, damage: 0.5, xp: 6 },
+      goblin: { hp: 120, speed: 160, damage: 1, xp: 18 }
     },
     WEAPONS: {
-      sword: { name: 'Brambleblade', baseDamage: 20, baseCooldown: 1.15, type: 'melee', desc: 'Arc slash that widens with practice.', arcs: [45, 90, 120, 150, 180] },
-      boomerang: { name: 'Skyhook Loop', baseDamage: 16, baseCooldown: 0.75, type: 'projectile', desc: 'Returning throw that gathers spoils.' },
-      bow: { name: 'Voyager Bow', baseDamage: 15, baseCooldown: 1.35, type: 'projectile', desc: 'Volley of arrows that grows in number.', spread: 0.08 },
-      storm: { name: 'Skybrand Sigil', baseDamage: 34, baseCooldown: 3.0, type: 'chain', desc: 'Lightning that leaps across foes.' },
-      bomb: { name: 'Bombbloom', baseDamage: 50, baseCooldown: 6.0, type: 'explosive', desc: 'Trailing seeds that erupt after a fuse.', radiusByRank: [70, 90, 110, 125, 140], maxTrail: 5 },
-      spinner: { name: 'Forest Spinner', baseDamage: 12, baseCooldown: 0, type: 'orbit', desc: 'Protective blades circling the survivor.' }
+      sword: { name: 'Brambleblade', baseDamage: 30, baseCooldown: 1.15, type: 'melee', desc: 'Arc slash that widens with practice.', arcs: [45, 90, 120, 150, 180] },
+      boomerang: { name: 'Skyhook Loop', baseDamage: 4, baseCooldown: 0.75, baseSpeed: 288, type: 'projectile', desc: 'Charged throws that return with spoils; ammo refills on the catch.' },
+      bow: { name: 'Voyager Bow', baseDamage: 20, baseCooldown: 1.35, type: 'projectile', desc: 'Volley of arrows that grows in number.', spread: 0.08 },
+      storm: { name: 'Skybrand Sigil', baseDamage: 12, baseCooldown: 3.0, type: 'chain', desc: 'Lightning that leaps across foes.' },
+      bomb: { name: 'Bombbloom', baseDamage: 30, baseCooldown: 6.0, type: 'explosive', desc: 'Trailing seeds that erupt after a fuse.', radiusByRank: [70, 90, 110, 125, 140], maxTrail: 5 },
+      spinner: { name: 'Forest Spinner', baseDamage: 5, baseCooldown: 0, type: 'orbit', desc: 'Protective blades circling the survivor.' }
     }
   };
 
@@ -155,6 +155,16 @@
       const t = ((i * 73856093) ^ (j * 19349663)) >>> 0;
       const r = t % 100;
       return r < 14 ? '^' : '';
+    },
+    heartsLabel(value) {
+      if (typeof value !== 'number' || !isFinite(value) || value <= 0) return '—';
+      const halves = Math.round(value / 0.5);
+      const full = Math.floor(halves / 2);
+      const hasHalf = halves % 2 === 1;
+      const parts = [];
+      if (full > 0) parts.push(`${full} heart${full > 1 ? 's' : ''}`);
+      if (hasHalf) parts.push('½ heart');
+      return parts.join(' + ');
     },
     onScreen(x, y, st) {
       const { W, H } = RS.Config;
@@ -206,13 +216,13 @@
       facing: 0
     },
     levels: { boomerang: 1 },
-    spinner: { dmg: 12, rings: [] },
-    bow: { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 },
-    storm: { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 },
-    sword: { enabled: false, timer: 0, cooldown: 1.15, dmg: 20, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 },
-    bomb: { enabled: false, cooldown: 6.0, dmg: 50, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 },
+    spinner: { dmg: RS.Config.WEAPONS.spinner.baseDamage, rings: [] },
+    bow: { enabled: false, cooldown: RS.Config.WEAPONS.bow.baseCooldown, timer: 0, arrows: 1, dmg: RS.Config.WEAPONS.bow.baseDamage, speed: 560, life: 1.8, pierce: 0 },
+    storm: { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.storm.baseCooldown, dmg: RS.Config.WEAPONS.storm.baseDamage, chains: 2, range: 300 },
+    sword: { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.sword.baseCooldown, dmg: RS.Config.WEAPONS.sword.baseDamage, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 },
+    bomb: { enabled: false, cooldown: RS.Config.WEAPONS.bomb.baseCooldown, dmg: RS.Config.WEAPONS.bomb.baseDamage, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 },
     wake: { enabled: false, level: 0, life: 0.22 },
-    boomerang: { count: 1, cooldown: 0.75, speed: 460, range: 320, damage: 16, ammo: 1, maxAmmo: 1, rechargeTimer: 0, collectRadius: 18 },
+    boomerang: { count: 1, cooldown: 0.75, speed: RS.Config.WEAPONS.boomerang.baseSpeed, range: 320, damage: RS.Config.WEAPONS.boomerang.baseDamage, ammo: 1, maxAmmo: 1, collectRadius: 18 },
     atkSpeed: 1.0,
     leechRate: 0.0,
     leechPool: 0.0,
@@ -471,6 +481,12 @@
       draw(ctx, x, y, scale) { drawSpriteSlime(ctx, x, y, scale); }
     },
     {
+      id: 'slimeMini',
+      name: 'Splinter Slime',
+      blurb: 'Fresh split that hesitates before lunging.',
+      draw(ctx, x, y, scale) { drawSpriteSlimePebble(ctx, x, y, scale); }
+    },
+    {
       id: 'skull',
       name: 'Whisper Skull',
       blurb: 'Floating bone kept aloft by whispers.',
@@ -513,11 +529,11 @@
     {
       id: 'boomerang',
       name: RS.Config.WEAPONS.boomerang.name,
-      blurb: RS.Config.WEAPONS.boomerang.desc,
+      blurb: `${RS.Config.WEAPONS.boomerang.desc} Tempo Charm boosts its travel speed.`,
       draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🪃', 72); },
       stats() {
         const cfg = RS.Config.WEAPONS.boomerang;
-        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Speed: `${cfg.baseSpeed}px/s`, Type: cfg.type };
       }
     },
     {
@@ -693,9 +709,12 @@
     {
       id: 'tempo',
       name: 'Tempo Charm',
-      desc: 'Global attack speed ↑ (all weapons)',
+      desc: 'Attack cadence ↑; boomerang flight speed ↑',
       max: 10,
-      onPick(s) { s.atkSpeed *= 1.10; }
+      onPick(s) {
+        s.atkSpeed *= 1.10;
+        RS.Systems.updateBoomerangProfile(s);
+      }
     },
     {
       id: 'leech',
@@ -742,15 +761,32 @@
         hp: stats.hp,
         maxHp: stats.hp,
         dmg: stats.damage,
-        xp: stats.xp
+        xp: stats.xp,
+        splitTimer: 0,
+        splitWarmup: stats.splitDelay ?? 0.75,
+        splitting: false,
+        splitDone: false,
+        drawOffsetY: 0
       };
     },
     update(e, dt, s) {
+      if (e.splitting) {
+        if (e.splitTimer > 0) {
+          e.splitTimer = Math.max(0, e.splitTimer - dt);
+        }
+        const base = e.splitWarmup || 0.75;
+        const progress = base > 1e-6 ? 1 - (e.splitTimer / base) : 1;
+        e._shakePhase = (e._shakePhase || 0) + dt * 18;
+        const wobble = Math.sin(e._shakePhase) * 3.2 * progress;
+        e.drawOffsetY = wobble;
+        return;
+      }
       const dx = s.player.x - e.x, dy = s.player.y - e.y, h = Math.hypot(dx, dy) || 1;
       e.vx = (dx / h) * e.speed;
       e.vy = (dy / h) * e.speed;
       e.x += e.vx * dt;
       e.y += e.vy * dt;
+      e.drawOffsetY = 0;
     },
     draw(e, ctx, s) {
       ctx.save();
@@ -759,7 +795,7 @@
       ctx.ellipse(e.x, e.y + 6, 10, 4, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-      drawSpriteSlime(ctx, e.x, e.y - 2, 0.78);
+      drawSpriteSlime(ctx, e.x, e.y - 2 + (e.drawOffsetY || 0), 0.78);
     }
   });
 
@@ -779,10 +815,23 @@
         maxHp: stats.hp,
         dmg: stats.damage,
         xp: stats.xp,
-        wobble: Math.random() * Math.PI * 2
+        wobble: Math.random() * Math.PI * 2,
+        state: opts.state || 'chase',
+        spawnStagger: opts.spawnStagger ?? 0,
+        drawOffsetY: 0
       };
     },
     update(e, dt, s) {
+      if (e.state === 'stagger') {
+        e.spawnStagger = Math.max(0, e.spawnStagger - dt);
+        e.wobble += dt * 5;
+        e.drawOffsetY = Math.sin(e.wobble) * 2.5;
+        if (e.spawnStagger <= 0) {
+          e.state = 'chase';
+          e.drawOffsetY = 0;
+        }
+        return;
+      }
       e.wobble += dt * 3;
       const dx = s.player.x - e.x, dy = s.player.y - e.y, h = Math.hypot(dx, dy) || 1;
       const sway = Math.sin(e.wobble) * 0.35;
@@ -794,6 +843,7 @@
       e.vy *= scale;
       e.x += e.vx * dt;
       e.y += e.vy * dt;
+      e.drawOffsetY = Math.sin(e.wobble) * 1.6;
     },
     draw(e, ctx) {
       ctx.save();
@@ -802,7 +852,7 @@
       ctx.ellipse(e.x, e.y + 4, 7, 3, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
-      drawSpriteSlimePebble(ctx, e.x, e.y - 1, 0.6);
+      drawSpriteSlimePebble(ctx, e.x, e.y - 1 + (e.drawOffsetY || 0), 0.6);
     }
   });
 
@@ -998,15 +1048,20 @@
       const countByRank = [1, 2, 3, 4, 5, 6];
       s.boomerang.count = countByRank[Math.min(rank - 1, countByRank.length - 1)];
       s.boomerang.maxAmmo = s.boomerang.count;
-      if (typeof s.boomerang.ammo !== 'number') s.boomerang.ammo = s.boomerang.maxAmmo;
-      s.boomerang.ammo = Math.min(s.boomerang.ammo, s.boomerang.maxAmmo);
+      const inFlight = Array.isArray(s.boomerangs) ? s.boomerangs.length : 0;
+      const readySlots = Math.max(0, s.boomerang.maxAmmo - inFlight);
+      s.boomerang.ammo = readySlots;
+      s.boomerang.damage = RS.Config.WEAPONS.boomerang.baseDamage;
       const baseCooldown = 0.75;
       const cooldownStep = 0.06;
       s.boomerang.cooldown = Math.max(0.35, baseCooldown - (rank - 1) * cooldownStep);
       const augmentRank = s.levels.hook ?? 0;
       const augmentStep = 6;
       s.boomerang.collectRadius = 18 + augmentRank * augmentStep;
-      s.boomerang.rechargeTimer = Math.min(s.boomerang.rechargeTimer || 0, s.boomerang.cooldown);
+      const tempoRank = s.levels.tempo || 0;
+      const speedBase = RS.Config.WEAPONS.boomerang.baseSpeed ?? 230;
+      const speedMult = tempoRank > 0 ? Math.pow(1.1, tempoRank) : 1;
+      s.boomerang.speed = speedBase * speedMult;
     },
     ensureWeaponSlots(s) {
       if (!Array.isArray(s.weaponSlots) || s.weaponSlots.length !== 6) {
@@ -1080,9 +1135,11 @@
     updateStormProfile(s) {
       const rank = s.levels.storm || 0;
       const baseChains = 2;
+      const baseCooldown = RS.Config.WEAPONS.storm.baseCooldown || 3.0;
       s.storm.chains = baseChains + Math.max(0, rank - 1);
-      s.storm.cooldown = Math.max(1.6, 3.0 - Math.max(0, rank - 1) * 0.25);
-      s.storm.dmg = 34 + Math.max(0, rank - 1) * 6;
+      s.storm.cooldown = Math.max(1.2, baseCooldown - Math.max(0, rank - 1) * 0.25);
+      const baseDmg = RS.Config.WEAPONS.storm.baseDamage;
+      s.storm.dmg = baseDmg + Math.max(0, rank - 1) * 6;
       s.storm.forkChance = rank >= 5 ? 0.35 : 0;
     },
     updateSpinnerProfile(s) {
@@ -1101,7 +1158,8 @@
       s.spinner.rings = [
         { count, radius, speed: speedBase + (count - 1) * speedStep, angle: prevAngle }
       ];
-      s.spinner.dmg = 12 + Math.max(0, rank - 1) * 3;
+      const baseDmg = RS.Config.WEAPONS.spinner.baseDamage;
+      s.spinner.dmg = baseDmg + Math.max(0, rank - 1) * 3;
     },
     updateWakeProfile(s) {
       const rank = s.levels.wake || 0;
@@ -1127,6 +1185,7 @@
       s.player.maxHearts = 3;
       s.player.hearts = Math.min(carryHearts, s.player.maxHearts);
       s.spinner.rings.length = 0;
+      s.spinner.dmg = RS.Config.WEAPONS.spinner.baseDamage;
       s.trails.length = 0;
       s.boomerangs.length = 0;
       s.projs.length = 0;
@@ -1134,11 +1193,11 @@
       s.placedBombs.length = 0;
       s.bolts.length = 0;
       s.spinnerAcc = new WeakMap();
-      Object.assign(s.sword, { enabled: false, timer: 0, cooldown: 1.15, dmg: 20, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 });
-      Object.assign(s.bow, { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 });
-      Object.assign(s.bomb, { enabled: false, cooldown: 6.0, dmg: 50, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 });
-      Object.assign(s.storm, { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 });
-      Object.assign(s.boomerang, { count: 1, cooldown: 0.75, speed: 460, range: 320, damage: 16, ammo: 1, maxAmmo: 1, rechargeTimer: 0, collectRadius: 18 });
+      Object.assign(s.sword, { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.sword.baseCooldown, dmg: RS.Config.WEAPONS.sword.baseDamage, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 });
+      Object.assign(s.bow, { enabled: false, cooldown: RS.Config.WEAPONS.bow.baseCooldown, timer: 0, arrows: 1, dmg: RS.Config.WEAPONS.bow.baseDamage, speed: 560, life: 1.8, pierce: 0 });
+      Object.assign(s.bomb, { enabled: false, cooldown: RS.Config.WEAPONS.bomb.baseCooldown, dmg: RS.Config.WEAPONS.bomb.baseDamage, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 });
+      Object.assign(s.storm, { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.storm.baseCooldown, dmg: RS.Config.WEAPONS.storm.baseDamage, chains: 2, range: 300 });
+      Object.assign(s.boomerang, { count: 1, cooldown: 0.75, speed: RS.Config.WEAPONS.boomerang.baseSpeed, range: 320, damage: RS.Config.WEAPONS.boomerang.baseDamage, ammo: 1, maxAmmo: 1, collectRadius: 18 });
       s.boomerangAngle = 0;
       s.weaponSlots = [ 'boomerang', null, null, null, null, null ];
       s.manualWeapon = 'boomerang';
@@ -1304,7 +1363,9 @@
         const rr = (e.r + s.player.r) ** 2;
         if (RS.Util.dist2(e.x, e.y, s.player.x, s.player.y) < rr) {
           if (!RS.State.devInvulnerable && s.player.iFrames <= 0) {
-            s.player.hearts -= 1;
+            const dmgHearts = typeof e.dmg === 'number' ? e.dmg : 1;
+            s.player.hearts = Math.max(0, s.player.hearts - dmgHearts);
+            s.player.hearts = Math.max(0, Math.round(s.player.hearts * 4) / 4);
             s.player.iFrames = RS.Config.BALANCE.HIT_IFRAMES;
             if (s.player.hearts <= 0) RS.Systems.onDeath(s);
           }
@@ -1348,7 +1409,6 @@
         born: s.elapsed
       });
       s.stats.boomerangsThrown++;
-      if (opts.manual) s.boomerang.rechargeTimer = 0;
     },
     pickBoomerangTargets(s, count) {
       const results = [];
@@ -1379,31 +1439,23 @@
     boomerang(dt, s) {
       const data = s.boomerang;
       const manualMode = s.manualWeapon === 'boomerang';
-      data.rechargeTimer = (data.rechargeTimer || 0) + dt * s.atkSpeed;
-      if (data.ammo < data.maxAmmo) {
-        while (data.rechargeTimer >= data.cooldown && data.ammo < data.maxAmmo) {
-          data.rechargeTimer -= data.cooldown;
-          data.ammo++;
-        }
-      } else {
-        data.rechargeTimer = Math.min(data.rechargeTimer, data.cooldown);
+      const capacity = Math.max(0, data.maxAmmo || 0);
+      const inFlight = s.boomerangs.length;
+      if (capacity > 0 && inFlight > capacity) {
+        data.ammo = Math.max(0, capacity - inFlight);
       }
       if (manualMode) {
         const cmd = this.takeManualCommand(s, 'boomerang');
         if (cmd && data.ammo > 0) {
           data.ammo--;
           this.spawnBoomerang(s, { target: { x: cmd.x, y: cmd.y }, manual: true });
-          if (data.ammo === 0) data.rechargeTimer = 0;
         }
-      } else if (data.ammo >= data.maxAmmo && s.boomerangs.length === 0) {
-        const targets = this.pickBoomerangTargets(s, data.maxAmmo);
-        data.ammo = 0;
-        data.rechargeTimer = 0;
-        for (const tgt of targets) {
-          if (tgt && typeof tgt.angle === 'number' && !tgt.x) this.spawnBoomerang(s, { angle: tgt.angle });
-          else if (tgt) this.spawnBoomerang(s, { target: tgt });
-          else this.spawnBoomerang(s, {});
-        }
+      } else if (data.ammo > 0 && inFlight < capacity) {
+        const tgt = this.pickBoomerangTargets(s, 1)[0];
+        data.ammo--;
+        if (tgt && typeof tgt.angle === 'number' && !tgt.x) this.spawnBoomerang(s, { angle: tgt.angle });
+        else if (tgt) this.spawnBoomerang(s, { target: tgt });
+        else this.spawnBoomerang(s, {});
       }
       const startReturn = (b) => {
         if (b.stage === 'return') return;
@@ -1496,6 +1548,10 @@
           while (b.carryHeals > 0) {
             s.heals.push({ x: s.player.x, y: s.player.y, phase: 0 });
             b.carryHeals--;
+          }
+          const maxAmmo = data.maxAmmo || 0;
+          if (maxAmmo > 0) {
+            data.ammo = Math.min(maxAmmo, (data.ammo || 0) + 1);
           }
           s.boomerangs.splice(i, 1);
         }
@@ -1846,14 +1902,33 @@
         const e = s.enemies[i];
         if (e.hp <= 0) {
           if (e.type === 'slime') {
-            const splits = RS.Config.ENEMIES.slime.splitCount || 0;
-            for (let k = 0; k < splits; k++) {
-              const ang = (Math.PI * 2 * k) / splits + Math.random() * 0.6;
-              const d = 12 + Math.random() * 6;
-              const nx = RS.Util.clamp(e.x + Math.cos(ang) * d, 8, RS.Config.MAP - 8);
-              const ny = RS.Util.clamp(e.y + Math.sin(ang) * d, 8, RS.Config.MAP - 8);
-              s.enemies.push(RS.Registry.Enemies.slimeMini.make(s, { x: nx, y: ny }));
+            const delay = RS.Config.ENEMIES.slime.splitDelay ?? 0.75;
+            if (!e.splitting) {
+              e.splitting = true;
+              e.splitTimer = delay;
+              e.splitWarmup = delay;
+              e.drawOffsetY = 0;
+              e._shakePhase = Math.random() * Math.PI * 2;
+              continue;
             }
+            if (e.splitTimer > 0) continue;
+            if (!e.splitDone) {
+              const splits = RS.Config.ENEMIES.slime.splitCount || 0;
+              for (let k = 0; k < splits; k++) {
+                const ang = (Math.PI * 2 * k) / splits + Math.random() * 0.5;
+                const d = 16 + Math.random() * 6;
+                const nx = RS.Util.clamp(e.x + Math.cos(ang) * d, 8, RS.Config.MAP - 8);
+                const ny = RS.Util.clamp(e.y + Math.sin(ang) * d, 8, RS.Config.MAP - 8);
+                s.enemies.push(RS.Registry.Enemies.slimeMini.make(s, {
+                  x: nx,
+                  y: ny,
+                  state: 'stagger',
+                  spawnStagger: 0.3 + Math.random() * 0.2
+                }));
+              }
+              e.splitDone = true;
+            }
+            if (!e.splitDone) continue;
           }
           const xpValue = (typeof e.xp === 'number') ? e.xp : 4 + RS.Util.rnd(1, 4);
           s.orbs.push({ x: e.x, y: e.y, v: xpValue });
@@ -1876,6 +1951,7 @@
       const rank = Math.max(1, s.levels.sword || 0);
       const idx = Math.min(arcs.length - 1, rank - 1);
       s.sword.arc = (arcs[idx] * Math.PI) / 180;
+      s.sword.dmg = RS.Config.WEAPONS.sword.baseDamage;
     },
     updateBombProfile(s) {
       const radii = RS.Config.WEAPONS.bomb.radiusByRank || [70];
@@ -1890,6 +1966,7 @@
       s.bomb.ammo = Math.min(s.bomb.ammo, s.bomb.maxAmmo);
       s.bomb.rechargeTimer = Math.min(s.bomb.rechargeTimer || 0, s.bomb.cooldown);
       s.bomb.autoCooldownTimer = Math.min(s.bomb.autoCooldownTimer || 0, 0.2);
+      s.bomb.dmg = RS.Config.WEAPONS.bomb.baseDamage;
     },
     generateScenery(s) {
       s.scenery.length = 0;
@@ -1945,13 +2022,13 @@
       s.enemies.length = s.projs.length = s.orbs.length = s.heals.length = s.bombs.length = s.placedBombs.length = s.bolts.length = s.trails.length = s.vacuumDrops.length = 0;
       s.boomerangs.length = 0;
       s.spinner.rings.length = 0;
-      s.spinner.dmg = 12;
+      s.spinner.dmg = RS.Config.WEAPONS.spinner.baseDamage;
       s.sword.swings.length = 0;
-      Object.assign(s.sword, { enabled: false, timer: 0, cooldown: 1.15, dmg: 20, reach: 120, duration: 0.26, angleSeed: 0, lastAngle: 0 });
-      Object.assign(s.bow,   { enabled: false, cooldown: 1.35, timer: 0, arrows: 1, dmg: 15, speed: 560, life: 1.8, pierce: 0 });
-      Object.assign(s.bomb,  { enabled: false, cooldown: 6.0, dmg: 50, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0] * 1.15, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 });
-      Object.assign(s.storm, { enabled: false, timer: 0, cooldown: 3.0, dmg: 34, chains: 2, range: 300 });
-      Object.assign(s.boomerang, { count: 1, cooldown: 0.75, speed: 460, range: 320, damage: 16, ammo: 1, maxAmmo: 1, rechargeTimer: 0, collectRadius: 18 });
+      Object.assign(s.sword, { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.sword.baseCooldown, dmg: RS.Config.WEAPONS.sword.baseDamage, reach: 120, duration: 0.26, angleSeed: 0, lastAngle: 0 });
+      Object.assign(s.bow,   { enabled: false, cooldown: RS.Config.WEAPONS.bow.baseCooldown, timer: 0, arrows: 1, dmg: RS.Config.WEAPONS.bow.baseDamage, speed: 560, life: 1.8, pierce: 0 });
+      Object.assign(s.bomb,  { enabled: false, cooldown: RS.Config.WEAPONS.bomb.baseCooldown, dmg: RS.Config.WEAPONS.bomb.baseDamage, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0] * 1.15, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 });
+      Object.assign(s.storm, { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.storm.baseCooldown, dmg: RS.Config.WEAPONS.storm.baseDamage, chains: 2, range: 300 });
+      Object.assign(s.boomerang, { count: 1, cooldown: 0.75, speed: RS.Config.WEAPONS.boomerang.baseSpeed, range: 320, damage: RS.Config.WEAPONS.boomerang.baseDamage, ammo: 1, maxAmmo: 1, collectRadius: 18 });
       s.boomerangAngle = 0;
       for (const k in s.levels) s.levels[k] = 0;
       s.levels.boomerang = 1;
@@ -2593,37 +2670,42 @@
       ctx.restore();
     },
     hud() {
-      const { W } = RS.Config, s = RS.State, C = RS.Config.COLORS;
+      const { W, H } = RS.Config, s = RS.State, C = RS.Config.COLORS;
       ctx.fillStyle = 'rgba(15,15,15,0.8)';
       ctx.fillRect(0, 0, W, 44);
       RS.Render.drawHearts(16, 10, s.player.hearts, s.player.maxHearts);
-      ctx.fillStyle = '#cbd5f5';
-      ctx.font = '12px ui-sans-serif,system-ui';
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'start';
-      ctx.fillText(s.modeLabel || '', 120, 16);
-      if (s.adventureStage) {
-        ctx.fillStyle = '#94a3b8';
-        ctx.fillText(`Stage: ${s.adventureStage.replace(/[-_]/g, ' ')}`, 120, 30);
-      }
+      ctx.fillStyle = C.hudText;
       ctx.font = '14px ui-sans-serif,system-ui';
       ctx.textBaseline = 'middle';
-      ctx.textAlign = 'start';
-      const xpPct = Math.min(s.player.xp / s.player.xpTo, 0.999);
-      ctx.fillStyle = C.hudBar;
-      ctx.fillRect(320, 12, 320, 18);
-      ctx.fillStyle = C.xpBar;
-      ctx.fillRect(320, 12, 320 * xpPct, 18);
+      ctx.textAlign = 'center';
+      ctx.fillText(`Time ${RS.Util.fmtTime(s.elapsed)}`, W / 2, 21);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '11px ui-sans-serif,system-ui';
+      ctx.fillText(`LV ${s.player.level}`, W / 2, 34);
       ctx.fillStyle = C.hudText;
-      ctx.fillText(`LV ${s.player.level}  XP ${Math.floor(s.player.xp)} / ${s.player.xpTo}`, 324, 21);
-      ctx.fillStyle = C.hudText;
-      ctx.fillText(`Time ${RS.Util.fmtTime(s.elapsed)}`, 660, 21);
-      ctx.fillStyle = 'rgba(220,230,220,0.6)';
-      ctx.font = '12px ui-sans-serif,system-ui';
       ctx.textAlign = 'right';
-      ctx.fillText('P for Pause', RS.Config.W - 10, 22);
+      ctx.font = '12px ui-sans-serif,system-ui';
+      ctx.fillText('P for Pause', W - 10, 22);
       RS.Render.weaponBar();
+      const xpPct = s.player.xpTo > 0 ? Math.min(s.player.xp / s.player.xpTo, 0.999) : 0;
+      const xpHeight = 16;
+      const xpWidth = Math.min(520, W * 0.6);
+      const xpX = (W - xpWidth) / 2;
+      const xpY = H - xpHeight - 4;
+      ctx.fillStyle = 'rgba(9,13,18,0.7)';
+      ctx.fillRect(xpX, xpY, xpWidth, xpHeight);
+      ctx.fillStyle = C.xpBar;
+      ctx.fillRect(xpX, xpY, xpWidth * xpPct, xpHeight);
+      ctx.strokeStyle = 'rgba(148,163,184,0.35)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(xpX, xpY, xpWidth, xpHeight);
+      ctx.font = '12px ui-sans-serif,system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`LV ${s.player.level}  XP ${Math.floor(s.player.xp)} / ${s.player.xpTo}`, xpX + xpWidth / 2, xpY + xpHeight / 2 + 1);
       ctx.textAlign = 'start';
+      ctx.textBaseline = 'alphabetic';
     },
     weaponBar() {
       const s = RS.State;
@@ -2640,12 +2722,13 @@
         switch (id) {
           case 'boomerang': {
             const data = s.boomerang;
-            const cooldown = Math.max(0.001, data.cooldown || 0.001);
-            const ready = (data.ammo || 0) > 0;
-            const remain = ready || data.maxAmmo <= 0 ? 0 : Math.max(0, cooldown - (data.rechargeTimer || 0));
-            const fraction = Math.min(1, remain / cooldown);
-            const blocked = !ready && s.boomerangs.length >= (data.count || data.maxAmmo || 1);
-            return { fraction, blocked, ready, remain, cooldown };
+            const maxAmmo = Math.max(1, data.maxAmmo || 1);
+            const ammo = Math.max(0, Math.min(maxAmmo, data.ammo || 0));
+            const ready = ammo > 0;
+            const spent = maxAmmo - ammo;
+            const fraction = Math.min(1, spent / maxAmmo);
+            const blocked = !ready;
+            return { fraction, blocked, ready, remain: spent, cooldown: maxAmmo };
           }
           case 'sword':
             return (() => {
@@ -2762,10 +2845,35 @@
       ctx.restore();
     },
     pause() {
-      const { W } = RS.Config, s = RS.State;
+      const { W, H } = RS.Config, s = RS.State;
       const devOpen = !!s.devPanelOpen;
       const devW = devOpen ? 280 : 0;
-      const w = 560 + devW, h = 320, x = W / 2 - w / 2, y = RS.Config.H / 2 - h / 2;
+      const weaponEntries = [
+        { id: 'boomerang', label: 'Boomerang', state: s.boomerang },
+        { id: 'sword', label: 'Sword', state: s.sword },
+        { id: 'bow', label: 'Bow', state: s.bow },
+        { id: 'storm', label: 'Skybrand', state: s.storm },
+        { id: 'bomb', label: 'Bombbloom', state: s.bomb },
+        { id: 'spinner', label: 'Spinner', state: s.spinner }
+      ];
+      const rowW = 260, rowH = 34, rowGap = 8, rowStartOffset = 36;
+      const weaponListHeight = rowStartOffset + rowH + Math.max(0, weaponEntries.length - 1) * (rowH + rowGap);
+      const weaponIds = new Set(weaponEntries.map(w => w.id));
+      const taken = Object.values(RS.Registry.Relics)
+        .filter(u => (s.levels[u.id] || 0) > 0)
+        .filter(u => !weaponIds.has(u.id));
+      const relicRowH = 26, relicGap = 6;
+      const relicListHeight = taken.length
+        ? rowStartOffset + relicRowH + Math.max(0, taken.length - 1) * (relicRowH + relicGap)
+        : rowStartOffset + 24;
+      const topPad = 82;
+      const bottomPad = 56;
+      const columnsHeight = Math.max(weaponListHeight, relicListHeight);
+      const panelHeightNeeded = topPad + columnsHeight + bottomPad;
+      const h = Math.max(360, panelHeightNeeded);
+      const w = 560 + devW;
+      const x = W / 2 - w / 2;
+      const y = H / 2 - h / 2;
       const btnW = 120, btnH = 36, gap = 16;
       const buttons = [
         { label: 'Resume', action: () => { RS.State.paused = false; RS.State.devPanelOpen = false; } },
@@ -2775,7 +2883,7 @@
       ];
       const totalW = btnW * buttons.length + gap * (buttons.length - 1);
       const startX = W / 2 - totalW / 2;
-      const btnY = y - 108;
+      const btnY = y + h + 18;
       RS.UI.uiButtons = [];
       buttons.forEach((btn, idx) => {
         RS.UI.addBtn(startX + idx * (btnW + gap), btnY, btnW, btnH, btn.label, btn.action);
@@ -2785,22 +2893,14 @@
       ctx.fillStyle = '#e2e8f0';
       ctx.font = '18px ui-sans-serif,system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText(`Paused — ${s.modeLabel}`, W / 2, y + 28);
+      ctx.fillText('Paused', W / 2, y + 28);
       ctx.font = '12px ui-sans-serif,system-ui';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText(`Time ${RS.Util.fmtTime(s.elapsed)}   •   Level ${s.player.level}`, W / 2, y + 46);
       if (s.gameplayMode === 'adventure' && s.adventureObjective) {
         ctx.fillText(s.adventureObjective, W / 2, y + 62);
       }
-      const weaponStats = [
-        { id: 'sword', label: 'Sword', current: s.sword.dmg, base: RS.Config.WEAPONS.sword.baseDamage, enabled: s.sword.enabled },
-        { id: 'boomerang', label: 'Boomerang', current: s.boomerang.damage, base: RS.Config.WEAPONS.boomerang.baseDamage, enabled: true },
-        { id: 'bow', label: 'Bow', current: s.bow.dmg, base: RS.Config.WEAPONS.bow.baseDamage, enabled: s.bow.enabled },
-        { id: 'storm', label: 'Skybrand', current: s.storm.dmg, base: RS.Config.WEAPONS.storm.baseDamage, enabled: s.storm.enabled },
-        { id: 'bomb', label: 'Bombbloom', current: s.bomb.dmg, base: RS.Config.WEAPONS.bomb.baseDamage, enabled: s.bomb.enabled },
-        { id: 'spinner', label: 'Spinner', current: s.spinner.dmg, base: RS.Config.WEAPONS.spinner.baseDamage, enabled: s.spinner.rings.length > 0 }
-      ];
-      const wx = x + 18, wy = y + 82;
+      const wx = x + 18, wy = y + topPad;
       ctx.textAlign = 'left';
       ctx.font = '12px ui-sans-serif,system-ui';
       ctx.fillStyle = '#a5b4fc';
@@ -2811,58 +2911,105 @@
       ctx.font = '11px ui-sans-serif,system-ui';
       ctx.fillStyle = '#94a3b8';
       ctx.fillText('Click a weapon to assign Manual control • Scroll wheel swaps in play', wx, wy + 14);
-      ctx.font = '13px ui-sans-serif,system-ui';
-      weaponStats.forEach((wStat, i) => {
-        const rowY = wy + 38 + i * 28;
-        const rowX = wx - 6;
-        const rowW = 240;
-        const rowH = 24;
-        const available = !!wStat.enabled;
-        const isManual = s.manualWeapon === wStat.id && RS.Systems.manualEligible(wStat.id) && RS.Systems.weaponAvailable(s, wStat.id);
-        ctx.fillStyle = available ? 'rgba(15,23,42,0.55)' : 'rgba(17,24,39,0.28)';
-        ctx.fillRect(rowX, rowY - 18, rowW, rowH);
-        ctx.strokeStyle = available ? 'rgba(56,92,66,0.35)' : 'rgba(71,85,105,0.35)';
+      ctx.textBaseline = 'alphabetic';
+      const rowTopBase = wy + rowStartOffset;
+      weaponEntries.forEach((entry, i) => {
+        const rowX = wx - 10;
+        const rowY = rowTopBase + i * (rowH + rowGap);
+        const icon = RS.Registry.ICON[entry.id] || '•';
+        const relic = RS.Registry.Relics[entry.id];
+        const maxLevel = relic?.max ?? 5;
+        const rawLevel = s.levels[entry.id] || 0;
+        const level = entry.id === 'boomerang' ? Math.max(1, rawLevel) : rawLevel;
+        let baseDamage = 0;
+        switch (entry.id) {
+          case 'boomerang': baseDamage = RS.Config.WEAPONS.boomerang.baseDamage; break;
+          case 'sword': baseDamage = RS.Config.WEAPONS.sword.baseDamage; break;
+          case 'bow': baseDamage = RS.Config.WEAPONS.bow.baseDamage; break;
+          case 'storm': baseDamage = RS.Config.WEAPONS.storm.baseDamage; break;
+          case 'bomb': baseDamage = RS.Config.WEAPONS.bomb.baseDamage; break;
+          case 'spinner': baseDamage = RS.Config.WEAPONS.spinner.baseDamage; break;
+          default: baseDamage = 0;
+        }
+        const scaledDamage = Math.round(baseDamage * s.player.damageMult);
+        let available = false;
+        switch (entry.id) {
+          case 'boomerang': available = true; break;
+          case 'spinner': available = (s.spinner.rings?.length || 0) > 0; break;
+          default: available = !!entry.state?.enabled || level > 0; break;
+        }
+        const isManual = available && RS.Systems.manualEligible(entry.id) && s.manualWeapon === entry.id;
+        const baseFill = available ? 'rgba(15,23,42,0.55)' : 'rgba(17,24,39,0.28)';
+        const baseStroke = available ? 'rgba(56,92,66,0.35)' : 'rgba(71,85,105,0.35)';
+        ctx.fillStyle = baseFill;
+        ctx.fillRect(rowX, rowY, rowW, rowH);
+        ctx.strokeStyle = baseStroke;
         ctx.lineWidth = 1;
-        ctx.strokeRect(rowX, rowY - 18, rowW, rowH);
+        ctx.strokeRect(rowX, rowY, rowW, rowH);
         if (isManual) {
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 3;
-          ctx.strokeRect(rowX - 1.5, rowY - 19.5, rowW + 3, rowH + 3);
+          ctx.strokeRect(rowX - 1.5, rowY - 1.5, rowW + 3, rowH + 3);
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = baseStroke;
+        }
+        const midY = rowY + rowH / 2;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.font = '20px ui-sans-serif,system-ui';
+        ctx.fillStyle = available ? '#f8fafc' : '#6b7280';
+        ctx.fillText(icon, rowX + 14, midY);
+        ctx.font = '13px ui-sans-serif,system-ui';
+        ctx.fillStyle = available ? '#e2e8f0' : '#6b7280';
+        ctx.fillText(entry.label, rowX + 44, midY - 6);
+        ctx.font = '11px ui-sans-serif,system-ui';
+        ctx.fillStyle = available ? '#94a3b8' : '#4b5563';
+        const damageText = available ? `DMG ${scaledDamage} (${baseDamage})` : '';
+        const levelText = available ? `Lv ${level}${maxLevel ? ` / ${maxLevel}` : ''}` : 'Locked';
+        ctx.fillText(`${levelText}${damageText ? '  •  ' + damageText : ''}`, rowX + 44, midY + 8);
+        if (isManual) {
           const blinkOn = Math.floor(RS.Util.now() * 2) % 2 === 0;
           if (blinkOn) {
-            ctx.font = '11px ui-sans-serif,system-ui';
-            ctx.fillStyle = '#facc15';
             ctx.textAlign = 'right';
-            ctx.fillText('Manual', rowX + rowW - 12, rowY - 24);
+            ctx.fillStyle = '#facc15';
+            ctx.fillText('Manual', rowX + rowW - 12, midY);
             ctx.textAlign = 'left';
           }
         }
-        const current = Math.round(wStat.current);
-        const diff = Math.round(wStat.current - wStat.base);
-        const diffText = diff === 0 ? '(+0)' : `(${diff > 0 ? '+' : ''}${diff})`;
-        ctx.fillStyle = available ? '#e2e8f0' : '#6b7280';
-        ctx.font = '13px ui-sans-serif,system-ui';
-        ctx.fillText(`${wStat.label} DMG: ${current} ${diffText}`, wx, rowY - 2);
-        if (available && RS.Systems.manualEligible(wStat.id)) {
-          RS.UI.addHotspot(rowX, rowY - 18, rowW, rowH, () => { RS.Systems.setManualWeapon(RS.State, wStat.id); });
+        if (available && RS.Systems.manualEligible(entry.id)) {
+          RS.UI.addHotspot(rowX, rowY, rowW, rowH, () => { RS.Systems.setManualWeapon(RS.State, entry.id); });
         }
       });
-      const taken = Object.values(RS.Registry.Relics).filter(u => (s.levels[u.id] || 0) > 0);
-      const gy = wy + 38 + weaponStats.length * 28 + 26;
-      const gx = x + 18;
-      const colW = 240, rowH = 28, cols = 2;
+      ctx.textBaseline = 'alphabetic';
+      const relicLabelX = wx + rowW + 32;
+      ctx.font = '14px ui-sans-serif,system-ui';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText('Relics', relicLabelX, wy);
+      const relicStartY = rowTopBase;
+      const relicBoxW = 220;
       if (!taken.length) {
         ctx.fillStyle = '#94a3b8';
         ctx.font = '13px ui-sans-serif,system-ui';
-        ctx.fillText('No relics chosen yet.', gx, gy);
+        ctx.fillText('No relics beyond core weapons yet.', relicLabelX, relicStartY + 6);
+      } else {
+        taken.forEach((u, i) => {
+          const cy = relicStartY + i * (relicRowH + relicGap);
+          ctx.fillStyle = '#0f172a';
+          ctx.fillRect(relicLabelX, cy, relicBoxW, relicRowH);
+          ctx.strokeStyle = '#334155';
+          ctx.strokeRect(relicLabelX, cy, relicBoxW, relicRowH);
+          ctx.fillStyle = '#e2e8f0';
+          ctx.font = '13px ui-sans-serif,system-ui';
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText((RS.Registry.ICON[u.id] || '•') + ' ' + u.name, relicLabelX + 8, cy + relicRowH / 2);
+          ctx.font = '11px ui-sans-serif,system-ui';
+          ctx.fillStyle = '#94a3b8';
+          ctx.textAlign = 'right';
+          ctx.fillText('Lv ' + (s.levels[u.id] || 0), relicLabelX + relicBoxW - 8, cy + relicRowH / 2);
+          ctx.textAlign = 'left';
+        });
       }
-      taken.forEach((u, i) => {
-        const cx = gx + (i % cols) * colW, cy = gy + Math.floor(i / cols) * rowH;
-        ctx.fillStyle = '#0f172a'; ctx.fillRect(cx, cy, 220, 22);
-        ctx.strokeStyle = '#334155'; ctx.strokeRect(cx, cy, 220, 22);
-        ctx.fillStyle = '#e2e8f0'; ctx.font = '14px ui-sans-serif,system-ui'; ctx.fillText((RS.Registry.ICON[u.id] || '•') + ' ' + u.name, cx + 6, cy + 16);
-      ctx.fillStyle = '#94a3b8'; ctx.font = '12px ui-sans-serif,system-ui'; ctx.fillText('Lv ' + (s.levels[u.id] || 0), cx + 180, cy + 16);
-      });
       ctx.textAlign = 'start';
       if (devOpen) RS.Render.devPanel(x + 560 + 10, y + 12, devW - 20, h - 24);
     },
@@ -3247,7 +3394,7 @@
               statsObj = {
                 HP: cfg.hp ?? '?',
                 Speed: cfg.speed ?? '?',
-                Damage: cfg.damage ?? '?',
+                Damage: RS.Util.heartsLabel(cfg.damage),
                 XP: cfg.xp ?? '?'
               };
             } else {
