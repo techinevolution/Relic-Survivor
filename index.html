@@ -2866,7 +2866,7 @@
       const relicListHeight = taken.length
         ? rowStartOffset + relicRowH + Math.max(0, taken.length - 1) * (relicRowH + relicGap)
         : rowStartOffset + 24;
-      const topPad = 82;
+      const topPad = 82 + (s.modeLabel ? 20 : 0);
       const bottomPad = 56;
       const columnsHeight = Math.max(weaponListHeight, relicListHeight);
       const panelHeightNeeded = topPad + columnsHeight + bottomPad;
@@ -2883,7 +2883,7 @@
       ];
       const totalW = btnW * buttons.length + gap * (buttons.length - 1);
       const startX = W / 2 - totalW / 2;
-      const btnY = y + h + 18;
+      const btnY = y - 54;
       RS.UI.uiButtons = [];
       buttons.forEach((btn, idx) => {
         RS.UI.addBtn(startX + idx * (btnW + gap), btnY, btnW, btnH, btn.label, btn.action);
@@ -2894,11 +2894,18 @@
       ctx.font = '18px ui-sans-serif,system-ui';
       ctx.textAlign = 'center';
       ctx.fillText('Paused', W / 2, y + 28);
+      let headerOffset = 46;
+      if (s.modeLabel) {
+        ctx.font = '13px ui-sans-serif,system-ui';
+        ctx.fillStyle = '#cbd5f5';
+        ctx.fillText(s.modeLabel, W / 2, y + 44);
+        headerOffset = 60;
+      }
       ctx.font = '12px ui-sans-serif,system-ui';
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText(`Time ${RS.Util.fmtTime(s.elapsed)}   •   Level ${s.player.level}`, W / 2, y + 46);
+      ctx.fillText(`Time ${RS.Util.fmtTime(s.elapsed)}   •   Level ${s.player.level}`, W / 2, y + headerOffset);
       if (s.gameplayMode === 'adventure' && s.adventureObjective) {
-        ctx.fillText(s.adventureObjective, W / 2, y + 62);
+        ctx.fillText(s.adventureObjective, W / 2, y + headerOffset + 16);
       }
       const wx = x + 18, wy = y + topPad;
       ctx.textAlign = 'left';
@@ -2963,10 +2970,19 @@
         ctx.fillStyle = available ? '#e2e8f0' : '#6b7280';
         ctx.fillText(entry.label, rowX + 44, midY - 6);
         ctx.font = '11px ui-sans-serif,system-ui';
-        ctx.fillStyle = available ? '#94a3b8' : '#4b5563';
-        const damageText = available ? `DMG ${scaledDamage} (${baseDamage})` : '';
         const levelText = available ? `Lv ${level}${maxLevel ? ` / ${maxLevel}` : ''}` : 'Locked';
-        ctx.fillText(`${levelText}${damageText ? '  •  ' + damageText : ''}`, rowX + 44, midY + 8);
+        if (available) {
+          ctx.fillStyle = '#94a3b8';
+          const baseStr = `${levelText}  •  DMG ${baseDamage}`;
+          const textX = rowX + 44;
+          ctx.fillText(baseStr, textX, midY + 8);
+          const baseWidth = ctx.measureText(baseStr).width;
+          ctx.fillStyle = '#60a5fa';
+          ctx.fillText(` (${scaledDamage})`, textX + baseWidth, midY + 8);
+        } else {
+          ctx.fillStyle = '#4b5563';
+          ctx.fillText(levelText, rowX + 44, midY + 8);
+        }
         if (isManual) {
           const blinkOn = Math.floor(RS.Util.now() * 2) % 2 === 0;
           if (blinkOn) {
