@@ -59,15 +59,108 @@
   // =====================================
   // RS Namespace
   // =====================================
-  const RS = {
-    Config: {},
-    Util: {},
-    Registry: { Relics: {}, Enemies: {}, ICON: {}, Bestiary: [] },
-    State: {},
-    Systems: {},
-    Render: {},
-    UI: {},
-    Tests: {}
+const RS = {
+  Config: {},
+  Util: {},
+  Registry: { Relics: {}, Enemies: {}, ICON: {}, Bestiary: [] },
+  State: {},
+  Systems: {},
+  Render: {},
+  UI: {},
+  Tests: {}
+};
+
+  const TITLE_FONT = {
+    'R': [
+      '111100',
+      '100010',
+      '100010',
+      '111100',
+      '101000',
+      '100100',
+      '100010'
+    ],
+    'E': [
+      '111110',
+      '100000',
+      '100000',
+      '111110',
+      '100000',
+      '100000',
+      '111110'
+    ],
+    'L': [
+      '100000',
+      '100000',
+      '100000',
+      '100000',
+      '100000',
+      '100000',
+      '111110'
+    ],
+    'I': [
+      '111110',
+      '001100',
+      '001100',
+      '001100',
+      '001100',
+      '001100',
+      '111110'
+    ],
+    'C': [
+      '011110',
+      '100001',
+      '100000',
+      '100000',
+      '100000',
+      '100001',
+      '011110'
+    ],
+    'S': [
+      '011110',
+      '100001',
+      '100000',
+      '011110',
+      '000001',
+      '100001',
+      '011110'
+    ],
+    'U': [
+      '100001',
+      '100001',
+      '100001',
+      '100001',
+      '100001',
+      '100001',
+      '011110'
+    ],
+    'V': [
+      '100001',
+      '100001',
+      '100001',
+      '100001',
+      '010010',
+      '010010',
+      '001100'
+    ],
+    'O': [
+      '011110',
+      '100001',
+      '100001',
+      '100001',
+      '100001',
+      '100001',
+      '011110'
+    ],
+    ' ': [
+      '000',
+      '000',
+      '000',
+      '000',
+      '000',
+      '000',
+      '000'
+    ]
   };
 
   // =====================================
@@ -2230,6 +2323,34 @@
       ctx.fillText(text, W / 2, y);
       ctx.textAlign = 'start';
     },
+    drawTitleText(text, centerX, topY, scale = 8, fill = '#f8fafc', stroke = '#0a0f0a') {
+      const upper = text.toUpperCase();
+      const glyphs = Array.from(upper).map((ch) => TITLE_FONT[ch] || TITLE_FONT[' ']);
+      const totalUnits = glyphs.reduce((sum, glyph) => sum + glyph[0].length + 1, -1);
+      const totalWidth = totalUnits * scale;
+      let cursor = centerX - totalWidth / 2;
+      ctx.save();
+      ctx.textAlign = 'start';
+      for (const glyph of glyphs) {
+        const width = glyph[0].length;
+        for (let row = 0; row < glyph.length; row++) {
+          for (let col = 0; col < width; col++) {
+            if (glyph[row][col] !== '1') continue;
+            const pixelX = cursor + col * scale;
+            const pixelY = topY + row * scale;
+            ctx.fillStyle = stroke;
+            ctx.fillRect(pixelX - 1, pixelY, scale, scale);
+            ctx.fillRect(pixelX + 1, pixelY, scale, scale);
+            ctx.fillRect(pixelX, pixelY - 1, scale, scale);
+            ctx.fillRect(pixelX, pixelY + 1, scale, scale);
+            ctx.fillStyle = fill;
+            ctx.fillRect(pixelX, pixelY, scale, scale);
+          }
+        }
+        cursor += (width + 1) * scale;
+      }
+      ctx.restore();
+    },
     drawHearts(x, y, hearts, maxHearts) {
       const full = Math.floor(hearts);
       const frac = hearts - full;
@@ -3188,37 +3309,105 @@
     },
     attract() {
       const { W, H } = RS.Config, s = RS.State;
-      ctx.fillStyle = '#0a0f0a';
+      const originX = RS.Config.MAP / 2;
+      const originY = RS.Config.MAP / 2;
+      const savedPlayer = { x: RS.State.player.x, y: RS.State.player.y };
+      const savedEnemies = RS.State.enemies;
+      const savedProjs = RS.State.projs;
+      const savedBoomerangs = RS.State.boomerangs;
+      const savedOrbs = RS.State.orbs;
+      const savedHeals = RS.State.heals;
+      const savedBombs = RS.State.bombs;
+      const savedPlacedBombs = RS.State.placedBombs;
+      const savedBolts = RS.State.bolts;
+      const savedTrails = RS.State.trails;
+      const savedVacuum = RS.State.vacuumDrops;
+      const savedSpinner = RS.State.spinner.rings;
+      RS.State.player.x = originX;
+      RS.State.player.y = originY;
+      RS.State.enemies = [];
+      RS.State.projs = [];
+      RS.State.boomerangs = [];
+      RS.State.orbs = [];
+      RS.State.heals = [];
+      RS.State.bombs = [];
+      RS.State.placedBombs = [];
+      RS.State.bolts = [];
+      RS.State.trails = [];
+      RS.State.vacuumDrops = [];
+      RS.State.spinner.rings = [];
+      ctx.save();
+      RS.Render.world();
+      ctx.restore();
+      RS.State.player.x = savedPlayer.x;
+      RS.State.player.y = savedPlayer.y;
+      RS.State.enemies = savedEnemies;
+      RS.State.projs = savedProjs;
+      RS.State.boomerangs = savedBoomerangs;
+      RS.State.orbs = savedOrbs;
+      RS.State.heals = savedHeals;
+      RS.State.bombs = savedBombs;
+      RS.State.placedBombs = savedPlacedBombs;
+      RS.State.bolts = savedBolts;
+      RS.State.trails = savedTrails;
+      RS.State.vacuumDrops = savedVacuum;
+      RS.State.spinner.rings = savedSpinner;
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.fillRect(0, 0, W, H);
-      const g = ctx.createRadialGradient(W / 2, H / 2, 60, W / 2, H / 2, Math.max(W, H) / 1.1);
-      g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, 'rgba(0,0,0,0.55)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, H);
-      RS.Render.drawCenterText('Relic Survivor', 40, H / 2 - 120);
-      RS.Render.drawCenterText('Single-map Rogue-lite', 18, H / 2 - 82);
-      const cx = W / 2, cy = H / 2 - 10, t = RS.Util.now();
+      ctx.save();
+      ctx.fillStyle = '#19381f';
+      ctx.font = '88px "Impact","Arial Black",sans-serif';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.lineWidth = 10;
+      ctx.lineJoin = 'round';
+      const titleY = H / 2 - 210;
+      ctx.strokeText('RELIC SURVIVOR', W / 2, titleY);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText('RELIC SURVIVOR', W / 2, titleY);
+      ctx.restore();
+      const cx = W / 2;
+      const cy = H / 2 + 16;
+      ctx.save();
+      ctx.translate(cx, cy);
+      const spriteSize = 12;
+      ctx.fillStyle = '#6b8f5a';
+      ctx.fillRect(-spriteSize / 2, -spriteSize / 2 - 4, spriteSize, 6);
+      ctx.fillStyle = '#f0e7c0';
+      ctx.fillRect(-spriteSize / 2, -spriteSize / 2 + 2, spriteSize, 6);
+      ctx.fillStyle = '#334d2f';
+      ctx.fillRect(-spriteSize / 2, -spriteSize / 2 + 8, spriteSize, 6);
+      ctx.restore();
+      const t = RS.Util.now();
       if (!RS.UI._vortex) {
         const ids = Object.keys(RS.Registry.ICON);
         RS.UI._vortex = [];
-        for (let i = 0; i < 36; i++) {
+        for (let i = 0; i < 18; i++) {
           const id = ids[i % ids.length];
-          RS.UI._vortex.push({ id, r: 92 + (i % 7) * 24 + Math.random() * 16, ang: Math.random() * Math.PI * 2, spd: 0.4 + Math.random() * 0.8, size: 16 + Math.random() * 14, depth: 0.6 + Math.random() * 0.8 });
+          RS.UI._vortex.push({
+            id,
+            baseRadius: 120 + (i % 6) * 18,
+            arc: Math.random() * Math.PI * 2,
+            speed: 0.4 + Math.random() * 0.8,
+            size: 28 + Math.random() * 12,
+            wobble: Math.random() * Math.PI * 2
+          });
         }
       }
-      for (const orb of RS.UI._vortex) {
-        const ang = orb.ang + t * orb.spd;
-        const r = orb.r;
-        const x = cx + Math.cos(ang) * r;
-        const y = cy + Math.sin(ang) * r * 0.55;
-        const a = 0.55 + 0.45 * (0.5 + 0.5 * Math.sin(ang));
-        ctx.globalAlpha = a * orb.depth;
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = `${Math.round(orb.size)}px ui-sans-serif,system-ui`;
-        ctx.textAlign = 'center';
-        ctx.fillText(RS.Registry.ICON[orb.id], x, y);
-      }
-      ctx.globalAlpha = 1;
+      ctx.textAlign = 'center';
+      ctx.font = '28px ui-sans-serif,system-ui';
+      RS.UI._vortex.forEach((node, idx) => {
+        const radius = node.baseRadius + Math.sin(t * 0.9 + node.wobble) * 18;
+        const angle = node.arc + t * node.speed * (idx % 2 === 0 ? 1 : -1);
+        const x = cx + Math.cos(angle) * radius;
+        const y = cy + Math.sin(angle) * radius * 0.8;
+        ctx.fillStyle = '#f8fafc';
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.lineWidth = 3;
+        ctx.strokeText(RS.Registry.ICON[node.id], x, y);
+        ctx.fillText(RS.Registry.ICON[node.id], x, y);
+      });
+      ctx.restore();
       if (s.mode === 'attract') {
         const blink = 0.6 + 0.4 * Math.sin(t * 3.0);
         ctx.fillStyle = `rgba(200,240,220,${blink})`;
