@@ -3371,9 +3371,9 @@ const RS = {
       const cy = H / 2 + 16;
       ctx.save();
       ctx.translate(cx, cy);
-      const blockWidth = 10;
-      const blockHeights = [4, 4, 6];
-      const blockColors = ['#5b8c5a', '#f0e7c0', '#3b5d3a'];
+      const blockWidth = 14;
+      const blockHeights = [6, 4, 8];
+      const blockColors = ['#6e8f63', '#f2e6b0', '#305532'];
       const totalHeight = blockHeights.reduce((sum, h) => sum + h, 0);
       let yCursor = -totalHeight / 2;
       blockHeights.forEach((h, idx) => {
