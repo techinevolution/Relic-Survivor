@@ -2323,11 +2323,12 @@ const RS = {
       ctx.fillText(text, W / 2, y);
       ctx.textAlign = 'start';
     },
-    drawTitleText(text, centerX, topY, scale = 8, fill = '#f8fafc', stroke = '#0a0f0a') {
+    drawTitleText(text, centerX, topY, scale = 8, fill = '#f8fafc', stroke = '#0a0f0a', strokePad) {
       const upper = text.toUpperCase();
       const glyphs = Array.from(upper).map((ch) => TITLE_FONT[ch] || TITLE_FONT[' ']);
       const totalUnits = glyphs.reduce((sum, glyph) => sum + glyph[0].length + 1, -1);
       const totalWidth = totalUnits * scale;
+      const pad = strokePad != null ? strokePad : Math.max(1, Math.round(scale * 0.22));
       let cursor = centerX - totalWidth / 2;
       ctx.save();
       ctx.textAlign = 'start';
@@ -2338,11 +2339,10 @@ const RS = {
             if (glyph[row][col] !== '1') continue;
             const pixelX = cursor + col * scale;
             const pixelY = topY + row * scale;
-            ctx.fillStyle = stroke;
-            ctx.fillRect(pixelX - 1, pixelY, scale, scale);
-            ctx.fillRect(pixelX + 1, pixelY, scale, scale);
-            ctx.fillRect(pixelX, pixelY - 1, scale, scale);
-            ctx.fillRect(pixelX, pixelY + 1, scale, scale);
+            if (stroke) {
+              ctx.fillStyle = stroke;
+              ctx.fillRect(pixelX - pad, pixelY - pad, scale + pad * 2, scale + pad * 2);
+            }
             ctx.fillStyle = fill;
             ctx.fillRect(pixelX, pixelY, scale, scale);
           }
@@ -3354,18 +3354,13 @@ const RS = {
       RS.State.spinner.rings = savedSpinner;
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.fillRect(0, 0, W, H);
-      ctx.save();
-      ctx.fillStyle = '#19381f';
-      ctx.font = '88px "Impact","Arial Black",sans-serif';
-      ctx.textAlign = 'center';
-      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      ctx.lineWidth = 10;
-      ctx.lineJoin = 'round';
-      const titleY = H / 2 - 210;
-      ctx.strokeText('RELIC SURVIVOR', W / 2, titleY);
-      ctx.fillStyle = '#f8fafc';
-      ctx.fillText('RELIC SURVIVOR', W / 2, titleY);
-      ctx.restore();
+      const titleScale = 12;
+      const glyphRows = (TITLE_FONT['R'] && TITLE_FONT['R'].length) || 7;
+      const titleBaseline = H / 2 - 210;
+      const titleTop = titleBaseline - glyphRows * titleScale;
+      const shadowOffset = Math.round(titleScale * 0.55);
+      RS.Render.drawTitleText('RELIC SURVIVOR', W / 2 + shadowOffset, titleTop + shadowOffset, titleScale, '#19381f', 'rgba(0,0,0,0.55)', Math.max(1, Math.round(titleScale * 0.4)));
+      RS.Render.drawTitleText('RELIC SURVIVOR', W / 2, titleTop, titleScale, '#f8fafc', '#0a0f0a', Math.max(2, Math.round(titleScale * 0.35)));
       const cx = W / 2;
       const cy = H / 2 + 16;
       ctx.save();
