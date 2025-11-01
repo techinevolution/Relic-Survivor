@@ -187,13 +187,35 @@ const RS = {
     pendingMode: null,
     preparingNext: false,
     _tracksReady: false,
+    root: null,
+    autoplayAttempted: false,
     ensureTracks() {
       if (this._tracksReady) return;
+      const ensureRoot = () => {
+        if (this.root) return this.root;
+        let host = document.getElementById('rs-audio-root');
+        if (!host) {
+          host = document.createElement('div');
+          host.id = 'rs-audio-root';
+          host.style.display = 'none';
+          (document.body || document.documentElement).appendChild(host);
+        }
+        this.root = host;
+        return host;
+      };
       const makeTrack = (id, src, loop = false) => {
         const audio = new Audio(src);
         audio.preload = 'auto';
         audio.loop = loop;
         audio.volume = 0;
+        audio.muted = true;
+        audio.playsInline = true;
+        const host = document.body ? ensureRoot() : null;
+        if (host) host.appendChild(audio);
+        else document.addEventListener('DOMContentLoaded', () => {
+          const root = ensureRoot();
+          if (!audio.parentElement) root.appendChild(audio);
+        }, { once: true });
         const track = {
           id,
           src,
@@ -260,6 +282,7 @@ const RS = {
       }
       track.audio.loop = loop;
       track.loop = loop;
+      track.audio.muted = false;
       track.audio.currentTime = 0;
       track.volume = 0;
       track.audio.volume = 0;
@@ -310,6 +333,46 @@ const RS = {
       });
       this.mode = 'none';
       this.current = null;
+    },
+    attemptAutoplay() {
+      if (this.autoplayAttempted) return;
+      this.autoplayAttempted = true;
+      this.ensureTracks();
+      const track = this.tracks.menu;
+      if (!track) return;
+      track.audio.loop = true;
+      track.loop = true;
+      track.audio.currentTime = 0;
+      track.audio.volume = 0;
+      track.audio.muted = true;
+      const onSuccess = () => {
+        const previous = this.current;
+        this.canPlay = true;
+        this.activeTracks = this.activeTracks.filter(t => t !== track);
+        this.current = track;
+        this.mode = 'menu';
+        this.requestedMode = 'menu';
+        this.pendingMode = null;
+        track.volume = 0;
+        track.startVolume = 0;
+        const fadeDur = previous && previous !== track ? this.crossfade : 1.2;
+        this.setFade(track, this.volume, fadeDur, false);
+        track.audio.muted = false;
+      };
+      const maybe = track.audio.play();
+      if (maybe && typeof maybe.then === 'function') {
+        maybe.then(onSuccess).catch(() => {
+          track.audio.pause();
+          track.audio.currentTime = 0;
+          track.audio.muted = false;
+          this.canPlay = false;
+          this.pendingMode = 'menu';
+          this.requestedMode = 'menu';
+          this.autoplayAttempted = true;
+        });
+      } else {
+        onSuccess();
+      }
     },
     onTrackEnded(track) {
       if (!track) return;
@@ -397,6 +460,27 @@ const RS = {
       }
     }
   };
+
+  const triggerAutoplay = () => {
+    RS.Audio.ensureTracks();
+    RS.Audio.requestedMode = RS.Audio.requestedMode || 'menu';
+    RS.Audio.pendingMode = RS.Audio.pendingMode || 'menu';
+    RS.Audio.attemptAutoplay();
+    if (!RS.Audio.canPlay) {
+      const resume = () => {
+        RS.Audio.resume();
+        document.removeEventListener('click', resume);
+        document.removeEventListener('keydown', resume);
+      };
+      document.addEventListener('click', resume);
+      document.addEventListener('keydown', resume);
+    }
+  };
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(triggerAutoplay, 0);
+  } else {
+    document.addEventListener('DOMContentLoaded', triggerAutoplay, { once: true });
+  }
 
   // =====================================
   // Config
@@ -3781,6 +3865,10 @@ const RS = {
             wobble: Math.random() * Math.PI * 2
           });
         }
+        RS.Audio.ensureTracks();
+        RS.Audio.requestedMode = RS.Audio.requestedMode || 'menu';
+        RS.Audio.pendingMode = RS.Audio.pendingMode || 'menu';
+        RS.Audio.attemptAutoplay();
       }
       ctx.textAlign = 'center';
       ctx.font = '28px ui-sans-serif,system-ui';
