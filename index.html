@@ -320,7 +320,7 @@ const RS = {
     atkSpeed: 1.0,
     leechRate: 0.0,
     leechPool: 0.0,
-    enemies: [], projs: [], boomerangs: [], orbs: [], heals: [], bombs: [], placedBombs: [], bolts: [], trails: [], vacuumDrops: [],
+    enemies: [], projs: [], boomerangs: [], orbs: [], heals: [], bombs: [], placedBombs: [], thrownBombs: [], bolts: [], trails: [], vacuumDrops: [],
     spinnerAcc: new WeakMap(),
     spawnTimer: 0,
     batTimer: RS.Config.BALANCE.BAT_BASE_PERIOD_S,
@@ -1285,6 +1285,7 @@ const RS = {
       s.projs.length = 0;
       s.bombs.length = 0;
       s.placedBombs.length = 0;
+      s.thrownBombs.length = 0;
       s.bolts.length = 0;
       s.spinnerAcc = new WeakMap();
       Object.assign(s.sword, { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.sword.baseCooldown, dmg: RS.Config.WEAPONS.sword.baseDamage, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 });
@@ -1907,7 +1908,9 @@ const RS = {
       }
       data.autoCooldownTimer = Math.max(0, (data.autoCooldownTimer || 0) - dt);
       const dropBomb = (x, y, opts = {}) => {
-        s.placedBombs.push({ x, y, timer: 0, fuse: data.fuse });
+        const bounce = opts.bounce || 0;
+        const timerStart = bounce > 0 ? -bounce : 0;
+        s.placedBombs.push({ x, y, timer: timerStart, fuse: data.fuse, bounce });
         s.stats.bombsPlaced++;
         if (opts.manual) {
           data.trailLeft = 0;
@@ -1916,12 +1919,41 @@ const RS = {
           data.trailTimer = data.trailGap;
         }
       };
+      const throwBomb = (tx, ty) => {
+        const map = RS.Config.MAP;
+        const startX = s.player.x;
+        const startY = s.player.y;
+        const targetX = RS.Util.clamp(tx, 0, map);
+        const targetY = RS.Util.clamp(ty, 0, map);
+        const dx = targetX - startX;
+        const dy = targetY - startY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const travelTime = Math.max(0.3, Math.min(0.55, dist / 360));
+        const arcHeight = Math.max(20, Math.min(60, dist * 0.22));
+        const bounceDur = 0.18;
+        s.stats.bombsPlaced++;
+        s.thrownBombs.push({
+          startX,
+          startY,
+          targetX,
+          targetY,
+          duration: travelTime,
+          t: 0,
+          arcHeight,
+          bounce: bounceDur,
+          x: startX,
+          y: startY,
+          elevation: 0
+        });
+        data.trailLeft = 0;
+        data.trailTimer = 0;
+      };
       if (isManual) {
         const cmd = this.takeManualCommand(s, 'bomb');
         if (cmd && data.ammo > 0) {
           data.ammo--;
           data.rechargeTimer = 0;
-          dropBomb(cmd.x, cmd.y, { manual: true });
+          throwBomb(cmd.x, cmd.y);
         }
       } else {
         if (data.ammo > 0 && data.autoCooldownTimer <= 0) {
@@ -1937,6 +1969,22 @@ const RS = {
             dropBomb(s.player.x, s.player.y);
             data.trailTimer = data.trailGap;
           }
+        }
+      }
+      for (let i = s.thrownBombs.length - 1; i >= 0; i--) {
+        const tb = s.thrownBombs[i];
+        tb.t += dt;
+        const duration = Math.max(0.001, tb.duration || 0.4);
+        const progress = Math.min(1, tb.t / duration);
+        const eased = progress < 1 ? progress : 1;
+        tb.x = tb.startX + (tb.targetX - tb.startX) * eased;
+        tb.y = tb.startY + (tb.targetY - tb.startY) * eased;
+        const arc = tb.arcHeight || 0;
+        tb.elevation = Math.sin(Math.PI * Math.min(1, eased)) * arc;
+        if (progress >= 1) {
+          const bounceDur = tb.bounce ?? 0.18;
+          s.placedBombs.push({ x: tb.targetX, y: tb.targetY, timer: -bounceDur, fuse: data.fuse, bounce: bounceDur });
+          s.thrownBombs.splice(i, 1);
         }
       }
       for (let i = s.placedBombs.length - 1; i >= 0; i--) {
@@ -2142,7 +2190,7 @@ const RS = {
         level: 1, xp: 0, xpTo: 20, xpGain: 1,
         facing: 0
       });
-      s.enemies.length = s.projs.length = s.orbs.length = s.heals.length = s.bombs.length = s.placedBombs.length = s.bolts.length = s.trails.length = s.vacuumDrops.length = 0;
+      s.enemies.length = s.projs.length = s.orbs.length = s.heals.length = s.bombs.length = s.placedBombs.length = s.thrownBombs.length = s.bolts.length = s.trails.length = s.vacuumDrops.length = 0;
       s.boomerangs.length = 0;
       s.spinner.rings.length = 0;
       s.spinner.dmg = RS.Config.WEAPONS.spinner.baseDamage;
@@ -2533,13 +2581,11 @@ const RS = {
       ctx.lineWidth = 4;
       ctx.strokeRect(0, 0, MAP, MAP);
 
-      // Bombs (placed indicators)
-      for (const b of RS.State.placedBombs) {
-        const fuse = Math.max(0.01, b.fuse || RS.State.bomb?.fuse || 1);
-        const progress = Math.min(1, (b.timer || 0) / fuse);
-        const pulse = 0.7 + 0.3 * Math.sin((b.timer || 0) * 8);
+      const drawBombSprite = (x, y, opts = {}) => {
+        const { pulseSeed = 0, sparkSeed = 0, fuseRatio = 0, elevation = 0 } = opts;
         ctx.save();
-        ctx.translate(b.x, b.y);
+        ctx.translate(x, y - elevation);
+        const pulse = 0.7 + 0.3 * Math.sin(pulseSeed);
         ctx.fillStyle = 'rgba(0,0,0,0.25)';
         ctx.beginPath();
         ctx.ellipse(0, 9, 12, 4.5, 0, 0, Math.PI * 2);
@@ -2555,13 +2601,13 @@ const RS = {
         ctx.fill();
         ctx.fillStyle = '#113027';
         ctx.beginPath();
-        ctx.ellipse(0, -6.4, 6.2, 4.2, -0.2, 0, Math.PI * 2);
+        ctx.ellipse(0, -6.4, 6.2, 4.0, -0.2, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = '#65a30d';
         ctx.beginPath();
         ctx.moveTo(-4.5, -8.8);
         ctx.bezierCurveTo(-2.0, -11.0, 2.0, -11.0, 4.5, -8.8);
-        ctx.bezierCurveTo(2.6, -6.6, -2.6, -6.6, -4.5, -8.8);
+        ctx.bezierCurveTo(2.6, -6.4, -2.6, -6.4, -4.5, -8.8);
         ctx.fill();
         ctx.strokeStyle = '#facc15';
         ctx.lineWidth = 2.1;
@@ -2570,15 +2616,45 @@ const RS = {
         ctx.moveTo(0, -10.8);
         ctx.bezierCurveTo(1.2, -13.6, -1.2, -15.2, 0.4, -18);
         ctx.stroke();
-        ctx.fillStyle = `rgba(255,196,94,${0.55 + 0.35 * Math.sin((b.timer || 0) * 14)})`;
+        const sparkAlpha = Math.max(0, Math.min(1, 0.55 + 0.35 * Math.sin(sparkSeed)));
+        ctx.fillStyle = `rgba(255,196,94,${sparkAlpha})`;
         ctx.beginPath();
-        ctx.arc(1.2, -18.4, 2.6 + progress * 1.6, 0, Math.PI * 2);
+        ctx.arc(1.2, -18.4, 2.6 + fuseRatio * 1.8, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = 'rgba(255,255,255,0.26)';
         ctx.beginPath();
         ctx.arc(-3.2, -3.5, 2.6, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+      };
+
+      // Bombs in flight (manual throws)
+      for (const tb of RS.State.thrownBombs) {
+        const pulseSeed = (tb.t || 0) * 8;
+        const sparkSeed = (tb.t || 0) * 12;
+        drawBombSprite(tb.x, tb.y, {
+          pulseSeed,
+          sparkSeed,
+          fuseRatio: 0,
+          elevation: tb.elevation || 0
+        });
+      }
+
+      // Bombs (placed indicators)
+      for (const b of RS.State.placedBombs) {
+        const fuse = Math.max(0.01, b.fuse || RS.State.bomb?.fuse || 1);
+        const fuseRatio = Math.max(0, Math.min(1, Math.max(0, b.timer) / fuse));
+        let elevation = 0;
+        if (b.bounce && b.timer < 0) {
+          const phase = Math.max(0, Math.min(1, 1 + b.timer / b.bounce));
+          elevation = Math.sin(phase * Math.PI) * 8;
+        }
+        drawBombSprite(b.x, b.y, {
+          pulseSeed: (b.timer || 0) * 8,
+          sparkSeed: (b.timer || 0) * 14,
+          fuseRatio,
+          elevation
+        });
       }
 
       // Bomb shockwaves
@@ -3390,6 +3466,7 @@ const RS = {
       const savedHeals = RS.State.heals;
       const savedBombs = RS.State.bombs;
       const savedPlacedBombs = RS.State.placedBombs;
+      const savedThrownBombs = RS.State.thrownBombs;
       const savedBolts = RS.State.bolts;
       const savedTrails = RS.State.trails;
       const savedVacuum = RS.State.vacuumDrops;
@@ -3403,6 +3480,7 @@ const RS = {
       RS.State.heals = [];
       RS.State.bombs = [];
       RS.State.placedBombs = [];
+      RS.State.thrownBombs = [];
       RS.State.bolts = [];
       RS.State.trails = [];
       RS.State.vacuumDrops = [];
@@ -3422,6 +3500,7 @@ const RS = {
       RS.State.heals = savedHeals;
       RS.State.bombs = savedBombs;
       RS.State.placedBombs = savedPlacedBombs;
+      RS.State.thrownBombs = savedThrownBombs;
       RS.State.bolts = savedBolts;
       RS.State.trails = savedTrails;
       RS.State.vacuumDrops = savedVacuum;
@@ -3768,6 +3847,7 @@ const RS = {
         atkSpeed: 1,
         manualWeapon: null,
         placedBombs: [],
+        thrownBombs: [],
         bombs: [],
         stats: { bombsPlaced: 0 },
         player: { x: 0, y: 0 },
@@ -3786,6 +3866,7 @@ const RS = {
         atkSpeed: 1,
         manualWeapon: null,
         placedBombs: [],
+        thrownBombs: [],
         bombs: [{ t: 0, x: testSlime.x, y: testSlime.y, r: 0, target: RS.Config.WEAPONS.bomb.radiusByRank[0], life: 0.32, dmg: RS.Config.WEAPONS.bomb.baseDamage, hit: new WeakSet() }],
         stats: { bombsPlaced: 0 },
         player: { x: 0, y: 0 },
@@ -3796,6 +3877,32 @@ const RS = {
       };
       RS.Systems.bomb(0.05, bombTestState);
       console.assert(testSlime.hp <= 0, 'Bombbloom explosion deals full damage on hit');
+    }
+    {
+      const throwState = {
+        bomb: { enabled: true, cooldown: 6, ammo: 0, maxAmmo: 1, rechargeTimer: 0, fuse: 1, trail: 0, trailLeft: 0, trailGap: 0.35 },
+        atkSpeed: 1,
+        manualWeapon: null,
+        placedBombs: [],
+        thrownBombs: [{
+          startX: 0, startY: 0,
+          targetX: 60, targetY: 0,
+          duration: 0.3,
+          t: 0.3,
+          arcHeight: 24,
+          bounce: 0.18,
+          x: 0, y: 0, elevation: 0
+        }],
+        bombs: [],
+        stats: { bombsPlaced: 0 },
+        player: { x: 0, y: 0 },
+        enemies: [],
+        orbs: [],
+        heals: [],
+        elapsed: 0
+      };
+      RS.Systems.bomb(0.05, throwState);
+      console.assert(throwState.thrownBombs.length === 0 && throwState.placedBombs.length === 1, 'Thrown bomb converts to placed bomb on landing');
     }
   };
   try { RS.Tests.run(); } catch (e) { console.warn('Self-tests error', e); }

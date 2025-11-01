@@ -78,4 +78,4 @@
 
 ## Update Log
 - 2024-10-31 – Azure slimes vaporize when struck for ≥2× their max HP (e.g., 24+ damage), skip splitting, and drop two XP orbs offset left/right to signal the overkill.
-- 2024-10-31 – Bombbloom cooldown now restores full ammo clip, trailing bombs wait a flat 0.35s between plants (independent of attack speed), the planted bombs use a custom sprite with fuse VFX, and explosions apply full damage on contact.
+- 2024-10-31 – Bombbloom cooldown now restores full ammo clip, trailing bombs wait a flat 0.35s between plants (independent of attack speed), manual throws arc to the click point with a bounce before arming, the planted bombs use a custom sprite with fuse VFX, and explosions apply full damage on contact.
