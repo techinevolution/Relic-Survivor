@@ -314,7 +314,7 @@ const RS = {
     bow: { enabled: false, cooldown: RS.Config.WEAPONS.bow.baseCooldown, timer: 0, arrows: 1, dmg: RS.Config.WEAPONS.bow.baseDamage, speed: 560, life: 1.8, pierce: 0 },
     storm: { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.storm.baseCooldown, dmg: RS.Config.WEAPONS.storm.baseDamage, chains: 2, range: 300 },
     sword: { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.sword.baseCooldown, dmg: RS.Config.WEAPONS.sword.baseDamage, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 },
-    bomb: { enabled: false, cooldown: RS.Config.WEAPONS.bomb.baseCooldown, dmg: RS.Config.WEAPONS.bomb.baseDamage, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 },
+    bomb: { enabled: false, cooldown: RS.Config.WEAPONS.bomb.baseCooldown, dmg: RS.Config.WEAPONS.bomb.baseDamage, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.35, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 },
     wake: { enabled: false, level: 0, life: 0.22 },
     boomerang: { count: 1, cooldown: 0.75, speed: RS.Config.WEAPONS.boomerang.baseSpeed, range: 320, damage: RS.Config.WEAPONS.boomerang.baseDamage, ammo: 1, maxAmmo: 1, collectRadius: 18 },
     atkSpeed: 1.0,
@@ -1289,7 +1289,7 @@ const RS = {
       s.spinnerAcc = new WeakMap();
       Object.assign(s.sword, { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.sword.baseCooldown, dmg: RS.Config.WEAPONS.sword.baseDamage, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 });
       Object.assign(s.bow, { enabled: false, cooldown: RS.Config.WEAPONS.bow.baseCooldown, timer: 0, arrows: 1, dmg: RS.Config.WEAPONS.bow.baseDamage, speed: 560, life: 1.8, pierce: 0 });
-      Object.assign(s.bomb, { enabled: false, cooldown: RS.Config.WEAPONS.bomb.baseCooldown, dmg: RS.Config.WEAPONS.bomb.baseDamage, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 });
+      Object.assign(s.bomb, { enabled: false, cooldown: RS.Config.WEAPONS.bomb.baseCooldown, dmg: RS.Config.WEAPONS.bomb.baseDamage, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0], fuse: 1.0, trail: 0, trailGap: 0.35, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 });
       Object.assign(s.storm, { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.storm.baseCooldown, dmg: RS.Config.WEAPONS.storm.baseDamage, chains: 2, range: 300 });
       Object.assign(s.boomerang, { count: 1, cooldown: 0.75, speed: RS.Config.WEAPONS.boomerang.baseSpeed, range: 320, damage: RS.Config.WEAPONS.boomerang.baseDamage, ammo: 1, maxAmmo: 1, collectRadius: 18 });
       s.boomerangAngle = 0;
@@ -1893,16 +1893,19 @@ const RS = {
       if (!s.bomb.enabled) return;
       const data = s.bomb;
       const isManual = s.manualWeapon === 'bomb';
-      data.rechargeTimer = (data.rechargeTimer || 0) + dt * s.atkSpeed;
-      if (data.ammo < data.maxAmmo) {
-        while (data.rechargeTimer >= data.cooldown && data.ammo < data.maxAmmo) {
-          data.rechargeTimer -= data.cooldown;
-          data.ammo++;
+      const maxAmmo = Math.max(0, data.maxAmmo || 0);
+      if (typeof data.ammo !== 'number') data.ammo = maxAmmo;
+      data.ammo = Math.min(data.ammo, maxAmmo);
+      if (data.ammo < maxAmmo) {
+        data.rechargeTimer = (data.rechargeTimer || 0) + dt * s.atkSpeed;
+        if (data.rechargeTimer >= data.cooldown) {
+          data.ammo = maxAmmo;
+          data.rechargeTimer = 0;
         }
       } else {
-        data.rechargeTimer = Math.min(data.rechargeTimer, data.cooldown);
+        data.rechargeTimer = 0;
       }
-      data.autoCooldownTimer = Math.max(0, (data.autoCooldownTimer || 0) - dt * s.atkSpeed);
+      data.autoCooldownTimer = Math.max(0, (data.autoCooldownTimer || 0) - dt);
       const dropBomb = (x, y, opts = {}) => {
         s.placedBombs.push({ x, y, timer: 0, fuse: data.fuse });
         s.stats.bombsPlaced++;
@@ -1925,10 +1928,9 @@ const RS = {
           data.ammo--;
           data.rechargeTimer = 0;
           dropBomb(s.player.x, s.player.y);
-          data.autoCooldownTimer = 0.1;
-        }
-        if (data.trailLeft > 0 && data.ammo > 0) {
-          data.trailTimer = (data.trailTimer ?? data.trailGap) - dt * s.atkSpeed;
+          data.autoCooldownTimer = data.trailGap || 0.35;
+        } else if (data.trailLeft > 0 && data.ammo > 0) {
+          data.trailTimer = (data.trailTimer ?? data.trailGap) - dt;
           if (data.trailTimer <= 0 && data.ammo > 0) {
             data.trailLeft--;
             data.ammo--;
@@ -1941,7 +1943,7 @@ const RS = {
         const b = s.placedBombs[i];
         b.timer += dt;
         if (b.timer >= b.fuse) {
-          s.bombs.push({ t: 0, x: b.x, y: b.y, r: 0, target: s.bomb.explosionRadius, life: 0.32, dmg: s.bomb.dmg });
+          s.bombs.push({ t: 0, x: b.x, y: b.y, r: 0, target: s.bomb.explosionRadius, life: 0.32, dmg: s.bomb.dmg, hit: new WeakSet() });
           s.placedBombs.splice(i, 1);
         }
       }
@@ -1950,9 +1952,15 @@ const RS = {
         b.t += dt;
         const growth = (b.target - b.r) * 12 * dt;
         b.r = Math.min(b.target, b.r + growth);
+        if (!b.hit) b.hit = new WeakSet();
         for (let j = s.enemies.length - 1; j >= 0; j--) {
           const e = s.enemies[j];
-          if (RS.Util.dist2(b.x, b.y, e.x, e.y) < b.r * b.r) RS.Systems.applyDamage(e, RS.Systems.effDamage(b.dmg, s) * dt * 1.2, s);
+          if (RS.Util.dist2(b.x, b.y, e.x, e.y) < b.r * b.r) {
+            if (!b.hit.has(e)) {
+              RS.Systems.applyDamage(e, RS.Systems.effDamage(b.dmg, s), s);
+              b.hit.add(e);
+            }
+          }
         }
         if (b.t >= b.life) s.bombs.splice(i, 1);
       }
@@ -2141,7 +2149,7 @@ const RS = {
       s.sword.swings.length = 0;
       Object.assign(s.sword, { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.sword.baseCooldown, dmg: RS.Config.WEAPONS.sword.baseDamage, reach: 120, duration: 0.26, angleSeed: 0, lastAngle: 0 });
       Object.assign(s.bow,   { enabled: false, cooldown: RS.Config.WEAPONS.bow.baseCooldown, timer: 0, arrows: 1, dmg: RS.Config.WEAPONS.bow.baseDamage, speed: 560, life: 1.8, pierce: 0 });
-      Object.assign(s.bomb,  { enabled: false, cooldown: RS.Config.WEAPONS.bomb.baseCooldown, dmg: RS.Config.WEAPONS.bomb.baseDamage, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0] * 1.15, fuse: 1.0, trail: 0, trailGap: 0.22, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 });
+      Object.assign(s.bomb,  { enabled: false, cooldown: RS.Config.WEAPONS.bomb.baseCooldown, dmg: RS.Config.WEAPONS.bomb.baseDamage, explosionRadius: RS.Config.WEAPONS.bomb.radiusByRank[0] * 1.15, fuse: 1.0, trail: 0, trailGap: 0.35, trailLeft: 0, trailTimer: 0, ammo: 1, maxAmmo: 1, rechargeTimer: 0, autoCooldownTimer: 0 });
       Object.assign(s.storm, { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.storm.baseCooldown, dmg: RS.Config.WEAPONS.storm.baseDamage, chains: 2, range: 300 });
       Object.assign(s.boomerang, { count: 1, cooldown: 0.75, speed: RS.Config.WEAPONS.boomerang.baseSpeed, range: 320, damage: RS.Config.WEAPONS.boomerang.baseDamage, ammo: 1, maxAmmo: 1, collectRadius: 18 });
       s.boomerangAngle = 0;
@@ -2527,25 +2535,64 @@ const RS = {
 
       // Bombs (placed indicators)
       for (const b of RS.State.placedBombs) {
-        const pulse = 0.5 + 0.5 * Math.sin(b.timer * 10);
-        ctx.fillStyle = '#222';
+        const fuse = Math.max(0.01, b.fuse || RS.State.bomb?.fuse || 1);
+        const progress = Math.min(1, (b.timer || 0) / fuse);
+        const pulse = 0.7 + 0.3 * Math.sin((b.timer || 0) * 8);
+        ctx.save();
+        ctx.translate(b.x, b.y);
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
         ctx.beginPath();
-        ctx.arc(b.x, b.y, 10, 0, Math.PI * 2);
+        ctx.ellipse(0, 9, 12, 4.5, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = `rgba(255,255,255,${0.4 + 0.4 * pulse})`;
-        ctx.lineWidth = 2;
+        ctx.scale(1 + 0.1 * pulse, 1 + 0.1 * pulse);
+        ctx.fillStyle = '#0f172a';
         ctx.beginPath();
-        ctx.arc(b.x, b.y, 14 + 2 * pulse, 0, Math.PI * 2);
+        ctx.arc(0, 0, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#1f3a4a';
+        ctx.beginPath();
+        ctx.arc(-2.2, -2.6, 4.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#113027';
+        ctx.beginPath();
+        ctx.ellipse(0, -6.4, 6.2, 4.2, -0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#65a30d';
+        ctx.beginPath();
+        ctx.moveTo(-4.5, -8.8);
+        ctx.bezierCurveTo(-2.0, -11.0, 2.0, -11.0, 4.5, -8.8);
+        ctx.bezierCurveTo(2.6, -6.6, -2.6, -6.6, -4.5, -8.8);
+        ctx.fill();
+        ctx.strokeStyle = '#facc15';
+        ctx.lineWidth = 2.1;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, -10.8);
+        ctx.bezierCurveTo(1.2, -13.6, -1.2, -15.2, 0.4, -18);
         ctx.stroke();
+        ctx.fillStyle = `rgba(255,196,94,${0.55 + 0.35 * Math.sin((b.timer || 0) * 14)})`;
+        ctx.beginPath();
+        ctx.arc(1.2, -18.4, 2.6 + progress * 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.26)';
+        ctx.beginPath();
+        ctx.arc(-3.2, -3.5, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
       }
 
       // Bomb shockwaves
       for (const b of RS.State.bombs) {
+        const progress = Math.min(1, b.t / Math.max(0.001, b.life));
         ctx.beginPath();
         ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(255,200,80,0.35)';
-        ctx.lineWidth = 8;
+        ctx.strokeStyle = `rgba(255,200,120,${0.55 * (1 - progress)})`;
+        ctx.lineWidth = 6;
         ctx.stroke();
+        ctx.fillStyle = `rgba(254,240,138,${0.2 * (1 - progress)})`;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.r * 0.6, 0, Math.PI * 2);
+        ctx.fill();
       }
 
       // Lightning bolts
@@ -3714,6 +3761,41 @@ const RS = {
       const slime2 = RS.Registry.Enemies.slime.make(S, { x: 0, y: 0 });
       RS.Systems.applyDamage(slime2, 24, mockState);
       console.assert(slime2.suppressSplit, 'slime overkill activates at ≥24 damage');
+    }
+    {
+      const mockBombState = {
+        bomb: { enabled: true, cooldown: 6, ammo: 0, maxAmmo: 3, rechargeTimer: 0, fuse: 1, trail: 0, trailLeft: 0, trailGap: 0.35, autoCooldownTimer: 0 },
+        atkSpeed: 1,
+        manualWeapon: null,
+        placedBombs: [],
+        bombs: [],
+        stats: { bombsPlaced: 0 },
+        player: { x: 0, y: 0 },
+        elapsed: 0,
+        enemies: [],
+        orbs: [],
+        heals: []
+      };
+      RS.Systems.bomb(6.1, mockBombState);
+      console.assert(mockBombState.bomb.ammo === mockBombState.bomb.maxAmmo, 'Bombbloom refills full stock after cooldown');
+    }
+    {
+      const testSlime = RS.Registry.Enemies.slime.make(S, { x: 0, y: 0 });
+      const bombTestState = {
+        bomb: { enabled: true, cooldown: 6, ammo: 0, maxAmmo: 1, rechargeTimer: 0, fuse: 1, trail: 0, trailLeft: 0, trailGap: 0.35 },
+        atkSpeed: 1,
+        manualWeapon: null,
+        placedBombs: [],
+        bombs: [{ t: 0, x: testSlime.x, y: testSlime.y, r: 0, target: RS.Config.WEAPONS.bomb.radiusByRank[0], life: 0.32, dmg: RS.Config.WEAPONS.bomb.baseDamage, hit: new WeakSet() }],
+        stats: { bombsPlaced: 0 },
+        player: { x: 0, y: 0 },
+        enemies: [testSlime],
+        orbs: [],
+        heals: [],
+        elapsed: 0
+      };
+      RS.Systems.bomb(0.05, bombTestState);
+      console.assert(testSlime.hp <= 0, 'Bombbloom explosion deals full damage on hit');
     }
   };
   try { RS.Tests.run(); } catch (e) { console.warn('Self-tests error', e); }

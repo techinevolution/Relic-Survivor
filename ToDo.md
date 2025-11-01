@@ -9,8 +9,8 @@
 - [ ] Draft Adventure Mode structure: stage list, unlock flow, and onboarding beats.
 - [ ] Decide on persistence stack (localStorage primary, JSON export/import secondary) and design reset/export UX.
 - [x] Update global combat rules so weapon rank-ups modify patterns only; shift damage/attack-speed scaling to global relics.  ✅ sword/bow/bomb now pattern-only.
-- [ ] Recenter projectile feel now that facing lock is gone; make sure boomerang, bow, and skybrand targeting reads clearly without directional input.
-- [ ] Verify that weapon rank-ups do not boost damage (Lightstone of Wisdom should be the only damage scalar) and update the pause panel display accordingly.
+- [x] Recenter projectile feel now that facing lock is gone; make sure boomerang, bow, and skybrand targeting reads clearly without directional input. ✅ handled earlier.
+- [x] Verify that weapon rank-ups do not boost damage (Lightstone of Wisdom should be the only damage scalar) and update the pause panel display accordingly. ✅ messaging/panel in place.
 
 ## Weapons & Relics
 - [x] Sword: implement tiered arc growth (45° → 180° by max rank).
@@ -37,9 +37,9 @@
 - [ ] Spinner manual mode: prototype press-and-hold expansion with retract-on-release behavior.
 - [x] Magnet Rune vacuum drop: make Skywell orbs spawn from rank 1 with low chance (0.01%) and scale frequency to 0.03% by rank 5; balance against heart spawn rate.  ✅ chance scales per rank (0.01% → 0.03%).
 - [x] Rebuild Boomerang firing to be ammo-based (shots consume ammo and refill on return; auto-fire only when ammo available).  ✅ ammo refills on return now.
-- [ ] Fix Bombbloom ammo recharge so the full stock refills after cooldown and respect rank-based capacity.
-- [ ] Reduce Forest Spinner base damage to 5 (Lightstone of Wisdom handles scaling).
-- [ ] Give Bombbloom a bomb-shaped sprite and VFX so it reads clearly in play.
+- [x] Fix Bombbloom ammo recharge so the full stock refills after cooldown and respect rank-based capacity.  ✅ full refill after cooldown.
+- [x] Reduce Forest Spinner base damage to 5 (Lightstone of Wisdom handles scaling). ✅ already tuned.
+- [x] Give Bombbloom a bomb-shaped sprite and VFX so it reads clearly in play.  ✅ new sprite + detonation flash.
 - [ ] Add a relic that unlocks Skybrand branching at rank 5 instead of the rank itself.
 - [ ] Adjust Sanguine Thread to boost only the sword and gate its rank-ups behind Sword Rank 5.
 
