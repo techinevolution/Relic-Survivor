@@ -298,6 +298,7 @@ const RS = {
     adventureObjective: null,
     scenery: [],
     sceneryReady: false,
+    hidePlayerSprite: false,
     stats: { kills: 0, arrowsFired: 0, bombsPlaced: 0, boltsCast: 0, swordSwings: 0, boomerangsThrown: 0, distance: 0, damageDealt: 0 },
     player: {
       x: RS.Config.MAP / 2, y: RS.Config.MAP / 2, vx: 0, vy: 0, r: 14,
@@ -2774,19 +2775,21 @@ const RS = {
       }
 
       // Player
-      const sps = 16;
-      ctx.fillStyle = '#e2d9b0';
-      ctx.fillRect(RS.State.player.x - sps / 2, RS.State.player.y - sps / 2, sps, sps);
-      ctx.fillStyle = '#5b8c5a';
-      ctx.fillRect(RS.State.player.x - sps / 2, RS.State.player.y - sps / 2 - 6, sps, 8);
-      ctx.fillStyle = '#3b5d3a';
-      ctx.fillRect(RS.State.player.x - sps / 2, RS.State.player.y - sps / 2 + 6, sps, 10);
-      if (RS.State.player.iFrames > 0) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(RS.State.player.x, RS.State.player.y, RS.State.player.r + 6, 0, Math.PI * 2);
-        ctx.stroke();
+      if (!RS.State.hidePlayerSprite) {
+        const sps = 16;
+        ctx.fillStyle = '#e2d9b0';
+        ctx.fillRect(RS.State.player.x - sps / 2, RS.State.player.y - sps / 2, sps, sps);
+        ctx.fillStyle = '#5b8c5a';
+        ctx.fillRect(RS.State.player.x - sps / 2, RS.State.player.y - sps / 2 - 6, sps, 8);
+        ctx.fillStyle = '#3b5d3a';
+        ctx.fillRect(RS.State.player.x - sps / 2, RS.State.player.y - sps / 2 + 6, sps, 10);
+        if (RS.State.player.iFrames > 0) {
+          ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(RS.State.player.x, RS.State.player.y, RS.State.player.r + 6, 0, Math.PI * 2);
+          ctx.stroke();
+        }
       }
       ctx.restore();
     },
@@ -3336,9 +3339,12 @@ const RS = {
       RS.State.trails = [];
       RS.State.vacuumDrops = [];
       RS.State.spinner.rings = [];
+      const prevHidePlayer = RS.State.hidePlayerSprite;
+      RS.State.hidePlayerSprite = true;
       ctx.save();
       RS.Render.world();
       ctx.restore();
+      RS.State.hidePlayerSprite = prevHidePlayer;
       RS.State.player.x = savedPlayer.x;
       RS.State.player.y = savedPlayer.y;
       RS.State.enemies = savedEnemies;
@@ -3365,13 +3371,16 @@ const RS = {
       const cy = H / 2 + 16;
       ctx.save();
       ctx.translate(cx, cy);
-      const spriteSize = 12;
-      ctx.fillStyle = '#6b8f5a';
-      ctx.fillRect(-spriteSize / 2, -spriteSize / 2 - 4, spriteSize, 6);
-      ctx.fillStyle = '#f0e7c0';
-      ctx.fillRect(-spriteSize / 2, -spriteSize / 2 + 2, spriteSize, 6);
-      ctx.fillStyle = '#334d2f';
-      ctx.fillRect(-spriteSize / 2, -spriteSize / 2 + 8, spriteSize, 6);
+      const blockWidth = 10;
+      const blockHeights = [4, 4, 6];
+      const blockColors = ['#5b8c5a', '#f0e7c0', '#3b5d3a'];
+      const totalHeight = blockHeights.reduce((sum, h) => sum + h, 0);
+      let yCursor = -totalHeight / 2;
+      blockHeights.forEach((h, idx) => {
+        ctx.fillStyle = blockColors[idx];
+        ctx.fillRect(-blockWidth / 2, yCursor, blockWidth, h);
+        yCursor += h;
+      });
       ctx.restore();
       const t = RS.Util.now();
       if (!RS.UI._vortex) {
