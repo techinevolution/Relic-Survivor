@@ -188,7 +188,7 @@ const RS = {
     preparingNext: false,
     _tracksReady: false,
     root: null,
-    autoplayAttempted: false,
+    autoplayTimer: null,
     ensureTracks() {
       if (this._tracksReady) return;
       const ensureRoot = () => {
@@ -292,7 +292,7 @@ const RS = {
       }
       this.current = track;
       this.preparingNext = false;
-      this.setFade(track, this.volume, this.crossfade, false);
+      this.setFade(track, this.getDesiredVolume(), this.crossfade, false);
       this.mode = loop ? 'menu' : 'arcade';
     },
     shuffle(list) {
@@ -335,44 +335,48 @@ const RS = {
       this.current = null;
     },
     attemptAutoplay() {
-      if (this.autoplayAttempted) return;
-      this.autoplayAttempted = true;
       this.ensureTracks();
-      const track = this.tracks.menu;
-      if (!track) return;
-      track.audio.loop = true;
-      track.loop = true;
-      track.audio.currentTime = 0;
-      track.audio.volume = 0;
-      track.audio.muted = true;
-      const onSuccess = () => {
-        const previous = this.current;
-        this.canPlay = true;
-        this.activeTracks = this.activeTracks.filter(t => t !== track);
-        this.current = track;
-        this.mode = 'menu';
-        this.requestedMode = 'menu';
-        this.pendingMode = null;
-        track.volume = 0;
-        track.startVolume = 0;
-        const fadeDur = previous && previous !== track ? this.crossfade : 1.2;
-        this.setFade(track, this.volume, fadeDur, false);
-        track.audio.muted = false;
+      const tryPlay = () => {
+        const track = this.tracks.menu;
+        if (!track) return;
+        track.audio.loop = true;
+        track.loop = true;
+        const promise = track.audio.play();
+        if (promise && typeof promise.then === 'function') {
+          promise.then(() => {
+            if (this.autoplayTimer) {
+              clearInterval(this.autoplayTimer);
+              this.autoplayTimer = null;
+            }
+            this.canPlay = true;
+            this.startMenuTrack();
+          }).catch(() => {
+            if (!this.autoplayTimer) {
+              this.autoplayTimer = setInterval(tryPlay, 2000);
+            }
+          });
+        } else {
+          this.canPlay = true;
+          this.startMenuTrack();
+        }
       };
-      const maybe = track.audio.play();
-      if (maybe && typeof maybe.then === 'function') {
-        maybe.then(onSuccess).catch(() => {
-          track.audio.pause();
-          track.audio.currentTime = 0;
-          track.audio.muted = false;
-          this.canPlay = false;
-          this.pendingMode = 'menu';
-          this.requestedMode = 'menu';
-          this.autoplayAttempted = true;
-        });
-      } else {
-        onSuccess();
-      }
+      tryPlay();
+    },
+    getDesiredVolume() {
+      const st = typeof RS !== 'undefined' ? RS.State : null;
+      if (st && st.settings && st.settings.musicMuted) return 0;
+      return this.volume;
+    },
+    refreshVolumes() {
+      this.ensureTracks();
+      const target = this.getDesiredVolume();
+      const fade = 0.4;
+      if (this.current && !this.activeTracks.includes(this.current)) this.activeTracks.push(this.current);
+      if (this.current) this.setFade(this.current, target, fade, false);
+      this.activeTracks = Array.from(new Set(this.activeTracks));
+      this.activeTracks.forEach(track => {
+        if (track !== this.current) this.setFade(track, target, fade, false);
+      });
     },
     onTrackEnded(track) {
       if (!track) return;
@@ -650,6 +654,8 @@ const RS = {
     manualWeapon: 'boomerang',
     manualAim: null,
     weaponSlots: [ 'boomerang', null, null, null, null, null ],
+    settings: { musicMuted: false },
+    pauseOptionsOpen: false,
     devPanelOpen: false,
     devInvulnerable: false,
     currentChoices: null,
@@ -2499,6 +2505,7 @@ const RS = {
     },
     restart(s) {
       s.devPanelOpen = false;
+      s.pauseOptionsOpen = false;
       Object.assign(s.player, {
         x: RS.Config.MAP / 2, y: RS.Config.MAP / 2,
         vx: 0, vy: 0, r: 14,
@@ -2673,13 +2680,26 @@ const RS = {
   // =====================================
   addEventListener('keydown', (e) => {
     RS.Audio.resume();
+    if (RS.State.paused && !RS.State.gameOver && e.metaKey && e.altKey && (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z')) {
+      RS.State.devPanelOpen = !RS.State.devPanelOpen;
+      if (RS.State.devPanelOpen) RS.State.pauseOptionsOpen = false;
+      e.preventDefault();
+      return;
+    }
     RS.State.keys[e.key.toLowerCase()] = true;
     if (e.key === 'p' || e.key === 'P') {
-      if (RS.State.mode === 'playing' && !RS.State.gameOver) { RS.State.paused = !RS.State.paused; RS.UI.uiButtons = []; }
+      if (RS.State.mode === 'playing' && !RS.State.gameOver) {
+        RS.State.paused = !RS.State.paused;
+        if (!RS.State.paused) {
+          RS.State.devPanelOpen = false;
+          RS.State.pauseOptionsOpen = false;
+        }
+        RS.UI.uiButtons = [];
+      }
     }
     if (e.key === 'r' || e.key === 'R') { RS.Systems.restart(RS.State); }
     if (e.key === 'm' || e.key === 'M') {
-      if (RS.State.mode === 'playing') { RS.State.mode = 'menu'; RS.State.paused = false; RS.State.gameOver = false; RS.UI.uiButtons = []; }
+      if (RS.State.mode === 'playing') { RS.State.mode = 'menu'; RS.State.paused = false; RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; RS.State.gameOver = false; RS.UI.uiButtons = []; }
     }
     if (RS.State.mode === 'attract') { e.preventDefault(); RS.State.mode = 'menu'; }
   }, { passive: false });
@@ -2721,6 +2741,37 @@ const RS = {
       ctx.textAlign = 'center';
       ctx.fillText(text, W / 2, y);
       ctx.textAlign = 'start';
+    },
+    drawOptionsPanel(x, y, w, h, context = 'menu') {
+      const s = RS.State;
+      ctx.save();
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '18px ui-sans-serif,system-ui';
+      ctx.textAlign = 'center';
+      ctx.fillText('Options', x + w / 2, y + 32);
+      const musicLabel = s.settings.musicMuted ? 'Music: Off' : 'Music: On';
+      const btnW = w - 48;
+      const btnH = 36;
+      const btnX = x + 24;
+      const btnY = y + 62;
+      RS.UI.addBtn(btnX, btnY, btnW, btnH, musicLabel, () => {
+        s.settings.musicMuted = !s.settings.musicMuted;
+        RS.Audio.refreshVolumes();
+      });
+      ctx.textAlign = 'center';
+      ctx.font = '12px ui-sans-serif,system-ui';
+      ctx.fillStyle = '#94a3b8';
+      const infoY = btnY + btnH + 22;
+      ctx.fillText('Toggle background music for title and arcade modes.', x + w / 2, infoY);
+      if (context === 'pause') {
+        ctx.fillText('Dev Tools shortcut: ⌘ + ⌥ + T (while paused)', x + w / 2, infoY + 18);
+      }
+      ctx.restore();
+      const closeLabel = context === 'pause' ? 'Close Options' : 'Back';
+      const closeAction = context === 'pause'
+        ? () => { RS.State.pauseOptionsOpen = false; RS.UI.uiButtons = []; }
+        : () => { RS.State.mode = 'menu'; RS.UI.uiButtons = []; };
+      RS.UI.addBtn(x + 24, y + h - 52, w - 48, 36, closeLabel, closeAction);
     },
     drawTitleText(text, centerX, topY, scale = 8, fill = '#f8fafc', stroke = '#0a0f0a', strokePad) {
       const upper = text.toUpperCase();
@@ -3465,10 +3516,10 @@ const RS = {
       const y = H / 2 - h / 2;
       const btnW = 120, btnH = 36, gap = 16;
       const buttons = [
-        { label: 'Resume', action: () => { RS.State.paused = false; RS.State.devPanelOpen = false; } },
-        { label: 'Restart', action: () => { RS.State.devPanelOpen = false; RS.Systems.restart(RS.State); } },
-        { label: 'Main Menu', action: () => { RS.State.mode = 'menu'; RS.State.paused = false; RS.State.devPanelOpen = false; RS.UI.uiButtons = []; } },
-        { label: devOpen ? 'Close Dev' : 'Dev Mode', action: () => { RS.State.devPanelOpen = !RS.State.devPanelOpen; } }
+        { label: 'Resume', action: () => { RS.State.paused = false; RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; } },
+        { label: 'Restart', action: () => { RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; RS.Systems.restart(RS.State); } },
+        { label: 'Main Menu', action: () => { RS.State.mode = 'menu'; RS.State.paused = false; RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; RS.UI.uiButtons = []; } },
+        { label: 'Options', action: () => { RS.State.pauseOptionsOpen = !RS.State.pauseOptionsOpen; if (RS.State.pauseOptionsOpen) RS.State.devPanelOpen = false; } }
       ];
       const totalW = btnW * buttons.length + gap * (buttons.length - 1);
       const startX = W / 2 - totalW / 2;
@@ -3616,7 +3667,27 @@ const RS = {
         });
       }
       ctx.textAlign = 'start';
+      if (s.pauseOptionsOpen) {
+        const optW = 320;
+        const optH = 200;
+        const optX = x + w / 2 - optW / 2;
+        const optY = y + 72;
+        ctx.save();
+        ctx.fillStyle = 'rgba(12,17,32,0.92)';
+        ctx.fillRect(optX, optY, optW, optH);
+        ctx.strokeStyle = 'rgba(148,163,184,0.45)';
+        ctx.strokeRect(optX, optY, optW, optH);
+        RS.Render.drawOptionsPanel(optX, optY, optW, optH, 'pause');
+        ctx.restore();
+      }
       if (devOpen) RS.Render.devPanel(x + 560 + 10, y + 12, devW - 20, h - 24);
+      if (!s.pauseOptionsOpen) {
+        ctx.font = '11px ui-sans-serif,system-ui';
+        ctx.fillStyle = '#94a3b8';
+        ctx.textAlign = 'center';
+      ctx.fillText('Options control music mute • Dev Tools: ⌘ + ⌥ + Z while paused', W / 2, y + h + 32);
+        ctx.textAlign = 'start';
+      }
     },
     devPanel(px, py, pw, ph) {
       const s = RS.State;
@@ -3770,6 +3841,8 @@ const RS = {
         RS.State.mode = 'menu';
         RS.State.gameOver = false;
         RS.State.paused = false;
+        RS.State.devPanelOpen = false;
+        RS.State.pauseOptionsOpen = false;
         RS.State.currentChoices = null;
         RS.UI.showLevelModal(false);
         RS.UI.uiButtons = [];
@@ -3934,10 +4007,7 @@ const RS = {
           lines.forEach((ln, i) => ctx.fillText('• ' + ln, x + 20, y + 64 + i * 22));
         }
         if (s.mode === 'options') {
-          ctx.fillText('Options', W / 2, y + 28);
-          ctx.font = '14px ui-sans-serif,system-ui';
-          ctx.textAlign = 'center';
-          ctx.fillText('(Audio/Accessibility coming soon.)', W / 2, y + 84);
+          RS.Render.drawOptionsPanel(x, y, boxW, boxH, 'menu');
         }
         if (s.mode === 'credits') {
           ctx.fillText('Credits', W / 2, y + 28);

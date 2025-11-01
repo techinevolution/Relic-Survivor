@@ -14,6 +14,7 @@
 - No build tooling—keep the project runnable by double-clicking the HTML file in a browser.
 - Persistence plan: Use browser `localStorage` (single key JSON). Document schema in `Data_formats.md`; bump version when fields change.
 - Modal UI (level-up picker) is rendered with inline DOM elements inside the HTML. Everything else draws to the main `<canvas id="game">`.
+- Options/Music: the Options overlay (from title or pause menu) toggles global music mute via `RS.State.settings.musicMuted`; audio crossfades respect the setting immediately.
 
 ## Code Architecture
 - The script bootstraps under `'use strict'` and builds a single namespace object: `RS` with branches `Config`, `Util`, `State`, `Audio`, `Registry`, `Systems`, `Render`, `UI`, and `Tests`. Do not introduce globals outside this namespace.
@@ -36,6 +37,7 @@
 
 ## Game State & Systems
 - `RS.State` holds core run-time data: mode (`attract`, `menu`, `playing`, etc.), timers, player stats, arrays for enemies/projectiles/resources (including `vacuumDrops` spawned by high-rank Magnet Rune), and upgrade tracking (`levels`, `currentChoices`).
+- Persistent UI prefs live on `RS.State.settings` (currently `musicMuted`). Pause-only overlays use `RS.State.pauseOptionsOpen`.
 - `RS.Systems` houses per-frame logic. Update order in the main loop is fixed: input → spawner → enemies → weapon systems (`spinner`, `bow`, `storm`, `bomb`) → cleanup → pickups → regen. If adding systems (e.g., a new weapon), follow this pattern and hook in at the correct position.
 - Balance tuning flows through `RS.Config.BALANCE`; keep new constants there rather than scattering numeric literals.
 - Player inventory and stats are reset via `RS.Systems.restart`. Extend that function whenever new persistent state is introduced.
@@ -55,6 +57,7 @@
 - Movement keys funnel through `RS.State.keys` with lowercase lookups. Keyboard listeners prevent-default on arrow keys and space, and special keys drive meta actions: `P` pause, `R` restart, `M` jump to menu.
 - Mouse clicks drive canvas UI buttons (pause/menu overlays), manual weapon aiming (for whichever weapon is set to Manual via the pause menu or scroll wheel), and level-up choices via DOM buttons. Touch support does not exist yet—plan to mirror pointer logic when requested.
 - Keep input capture centralized in the existing listeners; avoid adding per-feature listeners scattered across the file.
+- Dev panel toggle is hidden behind ⌘ + ⌥ + Z (while paused). The pause menu “Options” button exposes player-facing toggles instead of surfacing the dev panel directly.
 
 ## Economy & Progression
 - XP gems (`s.orbs`) award progress toward `player.xpTo`; level-ups trigger `RS.UI.rollChoices` which pauses the game and surfaces 1–3 relic options.
