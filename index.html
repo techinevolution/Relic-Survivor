@@ -164,6 +164,241 @@ const RS = {
   };
 
   // =====================================
+  // Audio
+  // =====================================
+  RS.Audio = {
+    volume: 0.25,
+    crossfade: 3,
+    crossfadeLead: 8,
+    playlist: [
+      { id: 'arcade1', src: 'Audio/Music/background-music.mp3' },
+      { id: 'arcade2', src: 'Audio/Music/background-music2.mp3' },
+      { id: 'arcade3', src: 'Audio/Music/background-music3.mp3' },
+      { id: 'arcade4', src: 'Audio/Music/background-music4.mp3' }
+    ],
+    menuTrackSrc: 'Audio/Music/background-music-title-menu.mp3',
+    tracks: {},
+    activeTracks: [],
+    queue: [],
+    current: null,
+    requestedMode: null,
+    mode: null,
+    canPlay: false,
+    pendingMode: null,
+    preparingNext: false,
+    _tracksReady: false,
+    ensureTracks() {
+      if (this._tracksReady) return;
+      const makeTrack = (id, src, loop = false) => {
+        const audio = new Audio(src);
+        audio.preload = 'auto';
+        audio.loop = loop;
+        audio.volume = 0;
+        const track = {
+          id,
+          src,
+          audio,
+          loop,
+          volume: 0,
+          targetVolume: 0,
+          startVolume: 0,
+          fadeDuration: 0,
+          fadeElapsed: 0,
+          stopOnZero: false
+        };
+        if (!loop) {
+          audio.addEventListener('ended', () => {
+            this.onTrackEnded(track);
+          });
+        }
+        this.tracks[id] = track;
+      };
+      makeTrack('menu', this.menuTrackSrc, true);
+      this.playlist.forEach(entry => makeTrack(entry.id, entry.src, false));
+      this._tracksReady = true;
+    },
+    resume() {
+      this.ensureTracks();
+      if (this.canPlay) return;
+      this.canPlay = true;
+      this.activeTracks.forEach(track => {
+        if (track.audio.paused) this.safePlay(track);
+      });
+      if (this.pendingMode != null || this.requestedMode != null) {
+        this.applyMode();
+      } else if (!this.mode) {
+        this.requestedMode = 'menu';
+        this.applyMode();
+      }
+    },
+    safePlay(track) {
+      if (!this.canPlay || !track) return;
+      try {
+        const playPromise = track.audio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Audio play blocked', err);
+      }
+    },
+    setFade(track, target, duration, stopOnZero = false) {
+      if (!track) return;
+      track.startVolume = track.volume;
+      track.targetVolume = target;
+      track.fadeDuration = Math.max(0.01, duration);
+      track.fadeElapsed = 0;
+      track.stopOnZero = stopOnZero;
+      if (!this.activeTracks.includes(track)) this.activeTracks.push(track);
+    },
+    startTrack(track, opts = {}) {
+      if (!track) return;
+      const loop = !!opts.loop;
+      if (!this.canPlay) {
+        this.pendingMode = this.requestedMode;
+        return;
+      }
+      track.audio.loop = loop;
+      track.loop = loop;
+      track.audio.currentTime = 0;
+      track.volume = 0;
+      track.audio.volume = 0;
+      this.safePlay(track);
+      if (this.current && this.current !== track) {
+        this.setFade(this.current, 0, this.crossfade, true);
+      }
+      this.current = track;
+      this.preparingNext = false;
+      this.setFade(track, this.volume, this.crossfade, false);
+      this.mode = loop ? 'menu' : 'arcade';
+    },
+    shuffle(list) {
+      for (let i = list.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [list[i], list[j]] = [list[j], list[i]];
+      }
+      return list;
+    },
+    getNextArcadeId() {
+      if (!this.queue.length) {
+        this.queue = this.shuffle(this.playlist.map(p => p.id).slice());
+      }
+      return this.queue.shift();
+    },
+    playNextArcade() {
+      if (!this.canPlay) {
+        this.pendingMode = 'arcade';
+        return;
+      }
+      const nextId = this.getNextArcadeId();
+      const track = this.tracks[nextId];
+      this.startTrack(track, { loop: false });
+    },
+    startMenuTrack() {
+      const track = this.tracks.menu;
+      if (!track) return;
+      this.startTrack(track, { loop: true });
+      this.queue = [];
+    },
+    startArcadePlaylist() {
+      this.queue = this.shuffle(this.playlist.map(p => p.id).slice());
+      this.playNextArcade();
+    },
+    fadeOutAll() {
+      this.activeTracks.forEach(track => {
+        this.setFade(track, 0, this.crossfade, true);
+      });
+      this.mode = 'none';
+      this.current = null;
+    },
+    onTrackEnded(track) {
+      if (!track) return;
+      if (!track.loop && this.activeTracks.includes(track)) {
+        track.audio.pause();
+        track.volume = 0;
+        track.audio.volume = 0;
+        const idx = this.activeTracks.indexOf(track);
+        if (idx >= 0) this.activeTracks.splice(idx, 1);
+      }
+      if (this.mode === 'arcade' && this.current === track) {
+        this.current = null;
+        this.preparingNext = false;
+        this.playNextArcade();
+      }
+    },
+    resolveMode(state) {
+      if (!state) return 'menu';
+      if (state.mode === 'playing' && state.gameplayMode === 'arcade') return 'arcade';
+      return 'menu';
+    },
+    applyMode() {
+      if (!this.canPlay) return;
+      const desired = this.pendingMode != null ? this.pendingMode : this.requestedMode;
+      if (desired === this.mode && this.current) {
+        this.pendingMode = null;
+        return;
+      }
+      this.pendingMode = null;
+      if (desired === 'arcade') {
+        this.startArcadePlaylist();
+      } else if (desired === 'menu') {
+        this.startMenuTrack();
+      } else {
+        this.fadeOutAll();
+      }
+    },
+    updateTrack(track, dt) {
+      if (!track) return false;
+      if (track.fadeDuration && track.fadeDuration > 0) {
+        track.fadeElapsed += dt;
+        const frac = Math.min(1, track.fadeElapsed / track.fadeDuration);
+        const newVol = track.startVolume + (track.targetVolume - track.startVolume) * frac;
+        track.volume = Math.max(0, Math.min(this.volume, newVol));
+        track.audio.volume = track.volume;
+        if (frac >= 1) {
+          track.fadeDuration = 0;
+          if (track.stopOnZero && track.targetVolume <= 0) {
+            track.audio.pause();
+            track.audio.currentTime = 0;
+            track.volume = 0;
+            track.audio.volume = 0;
+            track.stopOnZero = false;
+            if (this.current === track) this.current = null;
+            return false;
+          }
+        }
+      }
+      if (!track.loop && track.audio.ended && track.volume <= 0.001) {
+        return false;
+      }
+      return true;
+    },
+    update(state, dt) {
+      this.ensureTracks();
+      const desired = this.resolveMode(state);
+      if (desired !== this.requestedMode) {
+        this.requestedMode = desired;
+        if (this.canPlay) this.applyMode();
+      } else if (this.pendingMode != null && this.canPlay) {
+        this.applyMode();
+      }
+      if (!this.canPlay) return;
+      this.activeTracks = this.activeTracks.filter(track => this.updateTrack(track, dt));
+      if (this.mode === 'arcade' && this.current && !this.current.loop) {
+        const audio = this.current.audio;
+        if (isFinite(audio.duration) && audio.duration > 0) {
+          const remain = audio.duration - audio.currentTime;
+          const lead = Math.max(this.crossfade + 1.5, Math.min(this.crossfadeLead, audio.duration * 0.5));
+          if (!this.preparingNext && remain <= lead) {
+            this.preparingNext = true;
+            this.playNextArcade();
+          }
+        }
+      }
+    }
+  };
+
+  // =====================================
   // Config
   // =====================================
   RS.Config = {
@@ -2330,6 +2565,7 @@ const RS = {
   };
 
   cvs.addEventListener('click', (ev) => {
+    RS.Audio.resume();
     const s = RS.State;
     if (s.mode === 'attract') { s.mode = 'menu'; return; }
     if (RS.UI.click(ev)) return;
@@ -2352,6 +2588,7 @@ const RS = {
   // Input
   // =====================================
   addEventListener('keydown', (e) => {
+    RS.Audio.resume();
     RS.State.keys[e.key.toLowerCase()] = true;
     if (e.key === 'p' || e.key === 'P') {
       if (RS.State.mode === 'playing' && !RS.State.gameOver) { RS.State.paused = !RS.State.paused; RS.UI.uiButtons = []; }
@@ -3796,6 +4033,7 @@ const RS = {
       s.elapsed += dt;
       s.modeBannerTimer = Math.max(0, s.modeBannerTimer - dt);
     }
+    RS.Audio.update(RS.State, dt);
     draw();
   }
 

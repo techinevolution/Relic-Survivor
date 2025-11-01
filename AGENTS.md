@@ -6,30 +6,32 @@
 - Pace work “slow and steady.” Flag risky refactors early and wait for approval before large rewrites.
 
 ## Project Structure
-- Active build lives at `index.html` in the repo root (renamed from the previous `relic-survivor-vortex-r13-readable.html`). It contains HTML, CSS, and JS in a single file.
+- Active build lives at `index.html` in the repo root (renamed from the previous `relic-survivor-vortex-r13-readable.html`). Gameplay logic, markup, and styling remain bundled there for double-click launches.
 - `Outline.md` captures long-term direction (Adventure mode, Arcade rename, enemy plans). `ToDo.md` tracks actionable tasks—update both when scoping new work.
 - `Data_formats.md` documents schemas shared between in-game data and external tooling; keep it accurate when introducing persistence, new enemies, or balance tables.
 - `AGENTS.md` remains the collaboration playbook.
-- No external assets or build tooling—keep the project runnable by double-clicking the HTML file in a browser.
+- Audio assets now live in `Audio/` (`Music/` and `SFX/` subfolders). Keep paths relative so the game still runs when opened directly from disk.
+- No build tooling—keep the project runnable by double-clicking the HTML file in a browser.
 - Persistence plan: Use browser `localStorage` (single key JSON). Document schema in `Data_formats.md`; bump version when fields change.
 - Modal UI (level-up picker) is rendered with inline DOM elements inside the HTML. Everything else draws to the main `<canvas id="game">`.
 
 ## Code Architecture
-- The script bootstraps under `'use strict'` and builds a single namespace object: `RS` with branches `Config`, `Util`, `Registry`, `State`, `Systems`, `Render`, `UI`, and `Tests`. Do not introduce globals outside this namespace.
+- The script bootstraps under `'use strict'` and builds a single namespace object: `RS` with branches `Config`, `Util`, `State`, `Audio`, `Registry`, `Systems`, `Render`, `UI`, and `Tests`. Do not introduce globals outside this namespace.
 - Stick with browser-native **JavaScript** (TypeScript optional with a build step); CSS is for presentation only. Python is reserved for offline tooling that reads/writes the schemas in `Data_formats.md`.
 - Section order inside the script is deliberate and matches the comment banners:
   1. `RS.Config` constants (dimensions, palette, balance).
   2. `RS.Util` helpers (math, RNG, formatting).
   3. `RS.State` (authoritative mutable state).
-  4. DOM grabs and key-blocking setup.
-  5. Registries (`RS.Registry.ICON`, relics array, `addEnemyKind` calls).
-  6. `RS.Systems` (gameplay tick handlers).
-  7. Standalone helpers (e.g., `nearestEnemyTo`).
-  8. `RS.UI` (canvas HUD buttons + DOM level picker).
-  9. Event wiring (canvas clicks, keyboard listeners).
-  10. `RS.Render` (world, HUD, menus, pause, death, attract).
-  11. Game loop (`loop` / `draw`) and dev helpers (`showChoices`, `setChoices`).
-  12. `RS.Tests.run` self-checks.
+  4. `RS.Audio` (music manager, playlists, crossfades).
+  5. DOM grabs and key-blocking setup.
+  6. Registries (`RS.Registry.ICON`, relics array, `addEnemyKind` calls).
+  7. `RS.Systems` (gameplay tick handlers).
+  8. Standalone helpers (e.g., `nearestEnemyTo`).
+  9. `RS.UI` (canvas HUD buttons + DOM level picker).
+  10. Event wiring (canvas clicks, keyboard listeners).
+  11. `RS.Render` (world, HUD, menus, pause, death, attract).
+  12. Game loop (`loop` / `draw`) and dev helpers (`showChoices`, `setChoices`).
+  13. `RS.Tests.run` self-checks.
 - Preserve this flow when adding features so future agents can scan the file quickly.
 
 ## Game State & Systems
