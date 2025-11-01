@@ -1340,8 +1340,19 @@ const RS = {
       if (s.leechRate > 0 && s.player.hearts < s.player.maxHearts) s.leechPool += dealt * s.leechRate;
     },
     applyDamage(e, d, s) {
-      const dealt = Math.min(d, e.hp);
+      if (!e || typeof e.hp !== 'number') return;
+      const prevHp = e.hp;
+      const dealt = Math.min(d, prevHp);
       e.hp -= d;
+      if (e.type === 'slime' && !e.splitting) {
+        const baseline = e.maxHp || prevHp || RS.Config.ENEMIES.slime.hp || 12;
+        const threshold = baseline * 2;
+        const rawDamage = Math.floor(d + 1e-6);
+        if (prevHp >= baseline && rawDamage >= threshold) {
+          e.suppressSplit = true;
+          e.hp = Math.min(e.hp, 0);
+        }
+      }
       this.onDamage(dealt, s);
     },
     updateLeech(dt, s) {
@@ -1995,7 +2006,9 @@ const RS = {
       for (let i = s.enemies.length - 1; i >= 0; i--) {
         const e = s.enemies[i];
         if (e.hp <= 0) {
-          if (e.type === 'slime') {
+          const isSlime = e.type === 'slime';
+          const skipSplit = isSlime && e.suppressSplit;
+          if (isSlime && !skipSplit) {
             const delay = RS.Config.ENEMIES.slime.splitDelay ?? 0.75;
             if (!e.splitting) {
               e.splitting = true;
@@ -2025,7 +2038,15 @@ const RS = {
             if (!e.splitDone) continue;
           }
           const xpValue = (typeof e.xp === 'number') ? e.xp : 4 + RS.Util.rnd(1, 4);
-          s.orbs.push({ x: e.x, y: e.y, v: xpValue });
+          if (skipSplit) {
+            const offset = 10;
+            const leftValue = Math.floor(xpValue / 2);
+            const rightValue = xpValue - leftValue;
+            if (leftValue > 0) s.orbs.push({ x: e.x - offset, y: e.y, v: leftValue });
+            if (rightValue > 0) s.orbs.push({ x: e.x + offset, y: e.y, v: rightValue });
+          } else {
+            s.orbs.push({ x: e.x, y: e.y, v: xpValue });
+          }
           if (Math.random() < 0.005) s.heals.push({ x: e.x, y: e.y, phase: 0 });
           const magnetRank = s.levels.magnet || 0;
           if (magnetRank > 0) {
@@ -3685,6 +3706,15 @@ const RS = {
     console.assert(capsOk, 'caps=5 core');
     console.assert(!(RS.Registry.Relics.wake.canOffer && RS.Registry.Relics.wake.canOffer(S)), 'wake requires spinner (initially false)');
     console.assert(!(RS.Registry.Relics.leech.canOffer && RS.Registry.Relics.leech.canOffer(S)), 'leech gates at 8:00 (initially false)');
+    {
+      const mockState = { stats: { damageDealt: 0 }, leechRate: 0, player: { hearts: 0, maxHearts: 0 } };
+      const slime = RS.Registry.Enemies.slime.make(S, { x: 0, y: 0 });
+      RS.Systems.applyDamage(slime, 23, mockState);
+      console.assert(!slime.suppressSplit, 'slime overkill requires ≥24 damage');
+      const slime2 = RS.Registry.Enemies.slime.make(S, { x: 0, y: 0 });
+      RS.Systems.applyDamage(slime2, 24, mockState);
+      console.assert(slime2.suppressSplit, 'slime overkill activates at ≥24 damage');
+    }
   };
   try { RS.Tests.run(); } catch (e) { console.warn('Self-tests error', e); }
 

@@ -75,3 +75,6 @@
 - Communicate discoverables (bugs, balance quirks, UX polish ideas) in plain language with suggested next steps.
 - When additional information is needed from Katherine, phrase questions using gameplay terminology (e.g., “Should enemies sprint sooner?” instead of “Adjust spawn scalar?”).
 - Document any tuning changes (numbers, timers) so balance decisions can be tracked without digging into code.
+
+## Update Log
+- 2024-10-31 – Azure slimes vaporize when struck for ≥2× their max HP (e.g., 24+ damage), skip splitting, and drop two XP orbs offset left/right to signal the overkill.
