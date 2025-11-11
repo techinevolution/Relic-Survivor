@@ -41,7 +41,7 @@
 - [x] Reduce Forest Spinner base damage to 5 (Lightstone of Wisdom handles scaling). ✅ already tuned.
 - [x] Give Bombbloom a bomb-shaped sprite and VFX so it reads clearly in play.  ✅ new sprite + detonation flash.
 - [ ] Add a relic that unlocks Skybrand branching at rank 5 instead of the rank itself.
-- [ ] Adjust Sanguine Thread to boost only the sword and gate its rank-ups behind Sword Rank 5.
+- [x] Adjust Sanguine Thread to boost only the sword and gate its rank-ups behind Sword Rank 5.  ✅ Now a Brambleblade-only augment unlocked at sword rank 5.
 
 ## Enemies & Encounters
 - [x] Slimes: add delay before split children become targetable/damageable.  ✅ parent shakes then spawns staggered minis.

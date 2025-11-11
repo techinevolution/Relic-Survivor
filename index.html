@@ -163,11 +163,14 @@ const RS = {
     ]
   };
 
+  const CODEX_DIM = { width: 860, height: 520 };
+  const OPTIONS_PANEL_DIM = { width: 360, height: 240 };
+
   // =====================================
   // Audio
   // =====================================
   RS.Audio = {
-    volume: 0.25,
+    volume: 0.2,
     crossfade: 3,
     crossfadeLead: 8,
     playlist: [
@@ -615,6 +618,7 @@ const RS = {
     gameplayMode: 'arcade',
     codexFilter: 'monsters',
     codexSelection: 0,
+    codexScroll: { monsters: 0, weapons: 0, relics: 0 },
     modeLabel: 'Arcade Mode',
     modeBannerTimer: 0,
     adventureStage: null,
@@ -652,9 +656,10 @@ const RS = {
     boomerangAngle: 0,
     keys: {},
     manualWeapon: 'boomerang',
+    controlMode: 'auto',
     manualAim: null,
     weaponSlots: [ 'boomerang', null, null, null, null, null ],
-    settings: { musicMuted: false },
+    settings: { musicMuted: false, controlModes: { arcade: 'auto', adventure: 'manual' } },
     pauseOptionsOpen: false,
     devPanelOpen: false,
     devInvulnerable: false,
@@ -1073,9 +1078,9 @@ const RS = {
     {
       id: 'leech',
       name: 'Sanguine Thread',
-      blurb: 'Converts a sliver of dealt damage into healing once it appears mid-run.',
+      blurb: 'Brambleblade-only lifesteal that spins up after the blade reaches rank 5.',
       icon: RS.Registry.ICON.leech,
-      stats() { return { 'Max Rank': 5, Role: 'Global', Unlock: 'Appears after 8:00 elapsed' }; }
+      stats() { return { 'Max Rank': 5, Role: 'Sword Augment', Unlock: 'Requires Brambleblade rank 5' }; }
     },
     {
       id: 'wisdom',
@@ -1234,9 +1239,9 @@ const RS = {
     {
       id: 'leech',
       name: 'Sanguine Thread',
-      desc: 'A portion of dealt damage restores health (unlocks at 8:00)',
+      desc: 'Sword strikes return a sliver of damage as healing (requires Sword Lv5)',
       max: 5,
-      canOffer: (s) => s.elapsed >= 480,
+      canOffer: (s) => (s.levels.sword || 0) >= 5,
       onPick(s) { s.leechRate += 0.0015; }
     },
     {
@@ -1545,6 +1550,9 @@ const RS = {
         default: return false;
       }
     },
+    isEnemyTargetable(e) {
+      return !!(e && e.hp > 0 && !(e.type === 'slime' && e.splitting));
+    },
     manualEligible(weapon) {
       return [ 'boomerang', 'sword', 'bow', 'storm', 'bomb' ].includes(weapon);
     },
@@ -1596,6 +1604,21 @@ const RS = {
       s.manualWeapon = weapon;
       if (s.manualAim && s.manualAim.weapon !== weapon) s.manualAim = null;
     },
+    setControlMode(s, mode, opts = {}) {
+      const next = mode === 'manual' ? 'manual' : 'auto';
+      const settings = s.settings || (s.settings = {});
+      if (!settings.controlModes) {
+        settings.controlModes = { arcade: 'auto', adventure: 'manual' };
+      }
+      if (s.controlMode !== next) {
+        s.controlMode = next;
+        if (next === 'auto') s.manualAim = null;
+      }
+      if (!opts.skipPreference) {
+        const key = s.gameplayMode || 'arcade';
+        settings.controlModes[key] = next;
+      }
+    },
     cycleManualWeapon(s, dir = 1) {
       const unlocked = [ 'boomerang', 'sword', 'bow', 'storm', 'bomb' ]
         .filter(id => this.weaponAvailable(s, id));
@@ -1606,12 +1629,14 @@ const RS = {
       this.setManualWeapon(s, unlocked[idx]);
     },
     queueManual(s, weapon, x, y) {
+      if (s.controlMode !== 'manual') return;
       if (!weapon || s.manualWeapon !== weapon) return;
       if (!this.weaponAvailable(s, weapon)) return;
       if (!this.manualReady(s, weapon)) return;
       s.manualAim = { weapon, x, y };
     },
     takeManualCommand(s, weapon) {
+      if (s.controlMode !== 'manual') return null;
       const aim = s.manualAim;
       if (!aim || aim.weapon !== weapon) return null;
       s.manualAim = null;
@@ -1760,12 +1785,17 @@ const RS = {
     devToggleInvulnerability() {
       RS.State.devInvulnerable = !RS.State.devInvulnerable;
     },
-    onDamage(dealt, s) {
+    onDamage(dealt, s, source) {
+      if (!dealt || dealt <= 0) return;
       s.stats.damageDealt += dealt;
-      if (s.leechRate > 0 && s.player.hearts < s.player.maxHearts) s.leechPool += dealt * s.leechRate;
+      if (source === 'sword' && s.leechRate > 0 && s.player.hearts < s.player.maxHearts) {
+        s.leechPool += dealt * s.leechRate;
+      }
     },
-    applyDamage(e, d, s) {
-      if (!e || typeof e.hp !== 'number') return;
+    applyDamage(e, d, s, source = 'generic') {
+      if (!e || typeof e.hp !== 'number' || d <= 0) return 0;
+      if (e.hp <= 0) return 0;
+      if (e.type === 'slime' && e.splitting) return 0;
       const prevHp = e.hp;
       const dealt = Math.min(d, prevHp);
       e.hp -= d;
@@ -1778,7 +1808,8 @@ const RS = {
           e.hp = Math.min(e.hp, 0);
         }
       }
-      this.onDamage(dealt, s);
+      this.onDamage(dealt, s, source);
+      return dealt;
     },
     updateLeech(dt, s) {
       const L = RS.Config.BALANCE.LEECH_APPLY_RATE;
@@ -1943,7 +1974,9 @@ const RS = {
     pickBoomerangTargets(s, count) {
       const results = [];
       const player = s.player;
-      const enemies = [...s.enemies].sort((a, b) => RS.Util.dist2(a.x, a.y, player.x, player.y) - RS.Util.dist2(b.x, b.y, player.x, player.y));
+      const enemies = s.enemies
+        .filter(RS.Systems.isEnemyTargetable)
+        .sort((a, b) => RS.Util.dist2(a.x, a.y, player.x, player.y) - RS.Util.dist2(b.x, b.y, player.x, player.y));
       while (enemies.length && results.length < count) {
         const enemy = enemies.shift();
         results.push({ x: enemy.x, y: enemy.y });
@@ -1968,7 +2001,7 @@ const RS = {
     },
     boomerang(dt, s) {
       const data = s.boomerang;
-      const manualMode = s.manualWeapon === 'boomerang';
+      const manualMode = s.controlMode === 'manual' && s.manualWeapon === 'boomerang';
       const capacity = Math.max(0, data.maxAmmo || 0);
       const inFlight = s.boomerangs.length;
       if (capacity > 0 && inFlight > capacity) {
@@ -2029,7 +2062,7 @@ const RS = {
         for (let j = s.enemies.length - 1; j >= 0; j--) {
           const e = s.enemies[j];
           if (RS.Util.dist2(b.x, b.y, e.x, e.y) < (12 + e.r) ** 2) {
-            RS.Systems.applyDamage(e, RS.Systems.effDamage(data.damage, s), s);
+            RS.Systems.applyDamage(e, RS.Systems.effDamage(data.damage, s), s, 'boomerang');
             startReturn(b);
             break;
           }
@@ -2090,7 +2123,7 @@ const RS = {
     sword(dt, s) {
       const sw = s.sword;
       if (!sw.enabled) return;
-      const isManual = s.manualWeapon === 'sword';
+      const isManual = s.controlMode === 'manual' && s.manualWeapon === 'sword';
       sw.timer -= dt * s.atkSpeed;
       const addSwing = (angle) => {
         const arc = sw.arc || Math.PI;
@@ -2155,7 +2188,7 @@ const RS = {
           diff = Math.atan2(Math.sin(diff), Math.cos(diff));
           if (diff < -halfArc - tolerance) continue;
           if (diff > maxDiff + tolerance) continue;
-          RS.Systems.applyDamage(e, RS.Systems.effDamage(sw.dmg, s), s);
+          RS.Systems.applyDamage(e, RS.Systems.effDamage(sw.dmg, s), s, 'sword');
           swing.hit.add(e);
         }
         if (swing.t >= swing.life) sw.swings.splice(i, 1);
@@ -2196,7 +2229,7 @@ const RS = {
         const prev = s.spinnerAcc.get(e) || 0;
         let acc = prev + dt * count * s.atkSpeed, pulses = 0;
         while (acc >= PULSE) { pulses++; acc -= PULSE; }
-        if (pulses > 0) RS.Systems.applyDamage(e, RS.Systems.effDamage(s.spinner.dmg, s) * pulses, s);
+        if (pulses > 0) RS.Systems.applyDamage(e, RS.Systems.effDamage(s.spinner.dmg, s) * pulses, s, 'spinner');
         s.spinnerAcc.set(e, acc);
       }
       for (let i = s.trails.length - 1; i >= 0; i--) {
@@ -2207,14 +2240,14 @@ const RS = {
         for (let j = s.enemies.length - 1; j >= 0; j--) {
           const e = s.enemies[j];
           if (RS.Util.dist2(t.x, t.y, e.x, e.y) < (t.r + e.r) ** 2) {
-            RS.Systems.applyDamage(e, RS.Systems.effDamage(s.spinner.dmg * wakeMult, s) * dt * 4, s);
+            RS.Systems.applyDamage(e, RS.Systems.effDamage(s.spinner.dmg * wakeMult, s) * dt * 4, s, 'spinnerWake');
           }
         }
       }
     },
     bow(dt, s) {
       if (!s.bow.enabled) return;
-      const isManual = s.manualWeapon === 'bow';
+      const isManual = s.controlMode === 'manual' && s.manualWeapon === 'bow';
       s.bow.timer -= dt * s.atkSpeed;
       const fireVolley = (angle) => {
         const volleys = s.bow.arrows;
@@ -2239,7 +2272,9 @@ const RS = {
         s.bow.timer = s.bow.cooldown;
       };
       if (!isManual && s.bow.timer <= 0 && s.enemies.length) {
-        const target = [...s.enemies].sort((a, b) => RS.Util.dist2(a.x, a.y, s.player.x, s.player.y) - RS.Util.dist2(b.x, b.y, s.player.x, s.player.y))[0];
+        const target = s.enemies
+          .filter(RS.Systems.isEnemyTargetable)
+          .sort((a, b) => RS.Util.dist2(a.x, a.y, s.player.x, s.player.y) - RS.Util.dist2(b.x, b.y, s.player.x, s.player.y))[0];
         if (target) {
           const dx = target.x - s.player.x, dy = target.y - s.player.y;
           const ang = Math.atan2(dy, dx);
@@ -2264,7 +2299,7 @@ const RS = {
           const e = s.enemies[j];
           if (pr.hitSet.has(e)) continue;
           if (RS.Util.dist2(pr.x, pr.y, e.x, e.y) < (pr.r + e.r) ** 2) {
-            RS.Systems.applyDamage(e, RS.Systems.effDamage(pr.dmg, s), s);
+            RS.Systems.applyDamage(e, RS.Systems.effDamage(pr.dmg, s), s, 'bow');
             pr.hitSet.add(e);
             if (pr.pierce > 0) pr.pierce--;
             else { pr.life = 0; break; }
@@ -2275,7 +2310,7 @@ const RS = {
     },
     storm(dt, s) {
       if (!s.storm.enabled) return;
-      const isManual = s.manualWeapon === 'storm';
+      const isManual = s.controlMode === 'manual' && s.manualWeapon === 'storm';
       s.storm.timer -= dt * s.atkSpeed;
       const castChain = (startEnemy) => {
         if (!startEnemy) { s.storm.timer = s.storm.cooldown; return false; }
@@ -2287,7 +2322,7 @@ const RS = {
           if (!target || visited.has(target)) continue;
           anyHit = true;
           s.bolts.push({ x1: from.x, y1: from.y, x2: target.x, y2: target.y, t: 0, life: 0.6, flash: 0.18 });
-          RS.Systems.applyDamage(target, RS.Systems.effDamage(s.storm.dmg, s), s);
+          RS.Systems.applyDamage(target, RS.Systems.effDamage(s.storm.dmg, s), s, 'storm');
           visited.add(target);
           if (chainsLeft <= 0) continue;
           const pool = s.enemies.filter(e => !visited.has(e));
@@ -2326,7 +2361,7 @@ const RS = {
     bomb(dt, s) {
       if (!s.bomb.enabled) return;
       const data = s.bomb;
-      const isManual = s.manualWeapon === 'bomb';
+      const isManual = s.controlMode === 'manual' && s.manualWeapon === 'bomb';
       const maxAmmo = Math.max(0, data.maxAmmo || 0);
       if (typeof data.ammo !== 'number') data.ammo = maxAmmo;
       data.ammo = Math.min(data.ammo, maxAmmo);
@@ -2438,7 +2473,7 @@ const RS = {
           const e = s.enemies[j];
           if (RS.Util.dist2(b.x, b.y, e.x, e.y) < b.r * b.r) {
             if (!b.hit.has(e)) {
-              RS.Systems.applyDamage(e, RS.Systems.effDamage(b.dmg, s), s);
+              RS.Systems.applyDamage(e, RS.Systems.effDamage(b.dmg, s), s, 'bomb');
               b.hit.add(e);
             }
           }
@@ -2497,6 +2532,10 @@ const RS = {
         if (e.hp <= 0) {
           const isSlime = e.type === 'slime';
           const skipSplit = isSlime && e.suppressSplit;
+          const removeEnemy = () => {
+            s.enemies.splice(i, 1);
+            s.stats.kills++;
+          };
           if (isSlime && !skipSplit) {
             const delay = RS.Config.ENEMIES.slime.splitDelay ?? 0.75;
             if (!e.splitting) {
@@ -2525,6 +2564,8 @@ const RS = {
               e.splitDone = true;
             }
             if (!e.splitDone) continue;
+            removeEnemy();
+            continue;
           }
           const xpValue = (typeof e.xp === 'number') ? e.xp : 4 + RS.Util.rnd(1, 4);
           if (skipSplit) {
@@ -2533,7 +2574,7 @@ const RS = {
             const rightValue = xpValue - leftValue;
             if (leftValue > 0) s.orbs.push({ x: e.x - offset, y: e.y, v: leftValue });
             if (rightValue > 0) s.orbs.push({ x: e.x + offset, y: e.y, v: rightValue });
-          } else {
+          } else if (!isSlime) {
             s.orbs.push({ x: e.x, y: e.y, v: xpValue });
           }
           if (Math.random() < 0.005) s.heals.push({ x: e.x, y: e.y, phase: 0 });
@@ -2545,8 +2586,7 @@ const RS = {
             const chance = Math.min(maxChance, baseChance + step * Math.max(0, magnetRank - 1));
             if (Math.random() < chance) s.vacuumDrops.push({ x: e.x, y: e.y, t: 0, life: 12, pulse: 0 });
           }
-          s.enemies.splice(i, 1);
-          s.stats.kills++;
+          removeEnemy();
         }
       }
     },
@@ -2651,6 +2691,9 @@ const RS = {
       s.manualWeapon = 'boomerang';
       s.manualAim = null;
       s.weaponSlots = [ 'boomerang', null, null, null, null, null ];
+      const controlPrefs = s.settings.controlModes || (s.settings.controlModes = { arcade: 'auto', adventure: 'manual' });
+      const defaultMode = controlPrefs[s.gameplayMode] || (s.gameplayMode === 'adventure' ? 'manual' : 'auto');
+      this.setControlMode(s, defaultMode, { skipPreference: true });
       RS.State.mode = 'playing';
       if (s.gameplayMode === 'adventure') {
         s.modeLabel = 'Adventure Mode (WIP)';
@@ -2681,6 +2724,7 @@ const RS = {
   function nearestEnemyTo(x, y, list, range) {
     let best = null, bestD2 = range * range;
     for (const e of list) {
+      if (!RS.Systems.isEnemyTargetable(e)) continue;
       const d2 = RS.Util.dist2(x, y, e.x, e.y);
       if (d2 < bestD2) { bestD2 = d2; best = e; }
     }
@@ -2769,6 +2813,7 @@ const RS = {
     if (s.mode === 'attract') { s.mode = 'menu'; return; }
     if (RS.UI.click(ev)) return;
     if (s.mode !== 'playing' || s.paused || s.gameOver || s.currentChoices) return;
+    if (s.controlMode !== 'manual') return;
     const rect = cvs.getBoundingClientRect();
     const scaleX = rect.width ? cvs.width / rect.width : 1;
     const scaleY = rect.height ? cvs.height / rect.height : 1;
@@ -2795,7 +2840,7 @@ const RS = {
       return;
     }
     RS.State.keys[e.key.toLowerCase()] = true;
-    if (e.key === 'p' || e.key === 'P') {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
       if (RS.State.mode === 'playing' && !RS.State.gameOver) {
         RS.State.paused = !RS.State.paused;
         if (!RS.State.paused) {
@@ -2815,6 +2860,27 @@ const RS = {
   addEventListener('keyup', (e) => { RS.State.keys[e.key.toLowerCase()] = false; }, { passive: false });
   addEventListener('wheel', (e) => {
     const s = RS.State;
+    if (s.mode === 'codex') {
+      if (!s.codexScroll) s.codexScroll = { monsters: 0, weapons: 0, relics: 0 };
+      let entries = [];
+      switch (s.codexFilter) {
+        case 'weapons': entries = RS.Registry.Codex.weapons; break;
+        case 'relics': entries = RS.Registry.Codex.relics; break;
+        default: entries = RS.Registry.Codex.monsters; break;
+      }
+      const rowH = 44;
+      const rowGap = 10;
+      const listHeight = CODEX_DIM.height - 128 - 70;
+      const maxVisibleRows = Math.max(1, Math.floor((listHeight + rowGap) / (rowH + rowGap)));
+      const maxScroll = Math.max(0, entries.length - maxVisibleRows);
+      if (maxScroll > 0 && e.deltaY !== 0) {
+        const dir = e.deltaY > 0 ? 1 : -1;
+        const key = s.codexFilter || 'monsters';
+        s.codexScroll[key] = Math.max(0, Math.min(maxScroll, (s.codexScroll[key] || 0) + dir));
+        e.preventDefault();
+      }
+      return;
+    }
     if (s.mode !== 'playing' || s.paused || s.gameOver || s.currentChoices) return;
     if (e.deltaY === 0) return;
     const dir = e.deltaY > 0 ? 1 : -1;
@@ -2853,33 +2919,39 @@ const RS = {
     drawOptionsPanel(x, y, w, h, context = 'menu') {
       const s = RS.State;
       ctx.save();
+      ctx.fillStyle = 'rgba(12,17,32,0.92)';
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeStyle = 'rgba(148,163,184,0.45)';
+      ctx.strokeRect(x, y, w, h);
       ctx.fillStyle = '#e2e8f0';
       ctx.font = '18px ui-sans-serif,system-ui';
       ctx.textAlign = 'center';
-      ctx.fillText('Options', x + w / 2, y + 32);
+      ctx.fillText('Options', x + w / 2, y + 34);
+      const btnW = Math.min(280, w - 64);
+      const btnH = 32;
+      const btnX = x + (w - btnW) / 2;
+      let cursorY = y + 62;
+      const addButton = (label, onClick) => {
+        RS.UI.addBtn(btnX, cursorY, btnW, btnH, label, onClick);
+        cursorY += btnH + 18;
+      };
       const musicLabel = s.settings.musicMuted ? 'Music: Off' : 'Music: On';
-      const btnW = w - 48;
-      const btnH = 36;
-      const btnX = x + 24;
-      const btnY = y + 62;
-      RS.UI.addBtn(btnX, btnY, btnW, btnH, musicLabel, () => {
+      addButton(musicLabel, () => {
         s.settings.musicMuted = !s.settings.musicMuted;
         RS.Audio.refreshVolumes();
       });
-      ctx.textAlign = 'center';
-      ctx.font = '12px ui-sans-serif,system-ui';
-      ctx.fillStyle = '#94a3b8';
-      const infoY = btnY + btnH + 22;
-      ctx.fillText('Toggle background music for title and arcade modes.', x + w / 2, infoY);
-      if (context === 'pause') {
-        ctx.fillText('Dev Tools shortcut: ⌘ + ⌥ + T (while paused)', x + w / 2, infoY + 18);
-      }
-      ctx.restore();
+      const attackLabel = s.controlMode === 'manual' ? 'Attack Mode: Manual Aim' : 'Attack Mode: Full Auto';
+      addButton(attackLabel, () => {
+        const next = s.controlMode === 'manual' ? 'auto' : 'manual';
+        RS.Systems.setControlMode(RS.State, next);
+      });
       const closeLabel = context === 'pause' ? 'Close Options' : 'Back';
       const closeAction = context === 'pause'
         ? () => { RS.State.pauseOptionsOpen = false; RS.UI.uiButtons = []; }
         : () => { RS.State.mode = 'menu'; RS.UI.uiButtons = []; };
-      RS.UI.addBtn(x + 24, y + h - 52, w - 48, 36, closeLabel, closeAction);
+      const closeY = y + h - btnH - 24;
+      RS.UI.addBtn(btnX, closeY, btnW, btnH, closeLabel, closeAction);
+      ctx.restore();
     },
     drawTitleText(text, centerX, topY, scale = 8, fill = '#f8fafc', stroke = '#0a0f0a', strokePad) {
       const upper = text.toUpperCase();
@@ -3523,9 +3595,11 @@ const RS = {
         }
         ctx.fillStyle = 'rgba(12,25,18,0.85)';
         ctx.fill();
-        const isManual = s.manualWeapon === weaponId && RS.Systems.manualEligible(weaponId);
-        ctx.lineWidth = isManual ? 4 : 1.6;
-        ctx.strokeStyle = isManual ? '#fbbf24' : 'rgba(255,255,255,0.25)';
+        const manualHighlight = s.controlMode === 'manual' && s.manualWeapon === weaponId && RS.Systems.manualEligible(weaponId);
+        const autoHighlight = s.controlMode === 'auto' && !!weaponId;
+        const highlight = manualHighlight || autoHighlight;
+        ctx.lineWidth = highlight ? 4 : 1.6;
+        ctx.strokeStyle = highlight ? '#fbbf24' : 'rgba(255,255,255,0.25)';
         ctx.stroke();
         const icon = RS.Registry.ICON[weaponId] || '•';
         ctx.font = '28px ui-sans-serif,system-ui';
@@ -3665,7 +3739,10 @@ const RS = {
       ctx.fillText('Weapons', wx, wy);
       ctx.font = '11px ui-sans-serif,system-ui';
       ctx.fillStyle = '#94a3b8';
-      ctx.fillText('Click a weapon to assign Manual control • Scroll wheel swaps in play', wx, wy + 14);
+      const pauseTip = s.controlMode === 'manual'
+        ? 'Click a weapon to assign Manual control • Scroll wheel swaps in play'
+        : 'Switch Attack Mode to Manual in Options to aim weapons yourself';
+      ctx.fillText(pauseTip, wx, wy + 14);
       ctx.textBaseline = 'alphabetic';
       const rowTopBase = wy + rowStartOffset;
       weaponEntries.forEach((entry, i) => {
@@ -3693,7 +3770,8 @@ const RS = {
           case 'spinner': available = (s.spinner.rings?.length || 0) > 0; break;
           default: available = !!entry.state?.enabled || level > 0; break;
         }
-        const isManual = available && RS.Systems.manualEligible(entry.id) && s.manualWeapon === entry.id;
+        const manualHighlight = available && RS.Systems.manualEligible(entry.id) && s.controlMode === 'manual' && s.manualWeapon === entry.id;
+        const autoHighlight = available && s.controlMode === 'auto';
         const baseFill = available ? 'rgba(15,23,42,0.55)' : 'rgba(17,24,39,0.28)';
         const baseStroke = available ? 'rgba(56,92,66,0.35)' : 'rgba(71,85,105,0.35)';
         ctx.fillStyle = baseFill;
@@ -3701,7 +3779,7 @@ const RS = {
         ctx.strokeStyle = baseStroke;
         ctx.lineWidth = 1;
         ctx.strokeRect(rowX, rowY, rowW, rowH);
-        if (isManual) {
+        if (manualHighlight || autoHighlight) {
           ctx.strokeStyle = '#facc15';
           ctx.lineWidth = 3;
           ctx.strokeRect(rowX - 1.5, rowY - 1.5, rowW + 3, rowH + 3);
@@ -3731,7 +3809,7 @@ const RS = {
           ctx.fillStyle = '#4b5563';
           ctx.fillText(levelText, rowX + 44, midY + 8);
         }
-        if (isManual) {
+        if (manualHighlight) {
           const blinkOn = Math.floor(RS.Util.now() * 2) % 2 === 0;
           if (blinkOn) {
             ctx.textAlign = 'right';
@@ -3776,17 +3854,11 @@ const RS = {
       }
       ctx.textAlign = 'start';
       if (s.pauseOptionsOpen) {
-        const optW = 320;
-        const optH = 200;
+        const optW = OPTIONS_PANEL_DIM.width;
+        const optH = OPTIONS_PANEL_DIM.height;
         const optX = x + w / 2 - optW / 2;
         const optY = y + 72;
-        ctx.save();
-        ctx.fillStyle = 'rgba(12,17,32,0.92)';
-        ctx.fillRect(optX, optY, optW, optH);
-        ctx.strokeStyle = 'rgba(148,163,184,0.45)';
-        ctx.strokeRect(optX, optY, optW, optH);
         RS.Render.drawOptionsPanel(optX, optY, optW, optH, 'pause');
-        ctx.restore();
       }
       if (devOpen) RS.Render.devPanel(x + 560 + 10, y + 12, devW - 20, h - 24);
       if (!s.pauseOptionsOpen) {
@@ -4094,14 +4166,17 @@ const RS = {
       if (overlayOpen) {
         const isCodex = s.mode === 'codex';
         const isPlaySelect = s.mode === 'playSelect';
-        const boxW = isCodex ? 760 : (isPlaySelect ? 520 : 540);
-        const boxH = isCodex ? 480 : (isPlaySelect ? 300 : 260);
+        const isOptions = s.mode === 'options';
+        const boxW = isOptions ? OPTIONS_PANEL_DIM.width : (isCodex ? CODEX_DIM.width : (isPlaySelect ? 520 : 540));
+        const boxH = isOptions ? OPTIONS_PANEL_DIM.height : (isCodex ? CODEX_DIM.height : (isPlaySelect ? 300 : 260));
         const x = W / 2 - boxW / 2, y = H / 2 - boxH / 2;
-        ctx.fillStyle = isCodex ? 'rgba(12,17,32,0.9)' : 'rgba(0,0,0,0.7)';
-        ctx.fillRect(x, y, boxW, boxH);
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = '18px ui-sans-serif,system-ui';
-        ctx.textAlign = 'center';
+        if (!isOptions) {
+          ctx.fillStyle = isCodex ? 'rgba(12,17,32,0.9)' : 'rgba(0,0,0,0.7)';
+          ctx.fillRect(x, y, boxW, boxH);
+          ctx.fillStyle = '#e2e8f0';
+          ctx.font = '18px ui-sans-serif,system-ui';
+          ctx.textAlign = 'center';
+        }
         if (s.mode === 'how') {
           ctx.fillText('How to Play', W / 2, y + 28);
           ctx.font = '14px ui-sans-serif,system-ui';
@@ -4109,8 +4184,10 @@ const RS = {
           const lines = [
             'Move with WASD / Arrow Keys.',
             'Level up with XP gems to choose relics.',
-            'Hearts = hits. Rare white orbs heal 1.',
-            'P to pause. R to restart.'
+            'Hearts = hits. Heart drops restore 1.',
+            'Aim and click to manually attack toward the cursor.',
+            'Toggle Manual Mode in Options when you want to aim yourself.',
+            'P / Esc to pause. R to restart.'
           ];
           lines.forEach((ln, i) => ctx.fillText('• ' + ln, x + 20, y + 64 + i * 22));
         }
@@ -4191,6 +4268,8 @@ const RS = {
               action: () => {
                 RS.State.codexFilter = f.id;
                 RS.State.codexSelection = 0;
+                if (!RS.State.codexScroll) RS.State.codexScroll = { monsters: 0, weapons: 0, relics: 0 };
+                RS.State.codexScroll[f.id] = 0;
               }
             });
           });
@@ -4203,12 +4282,25 @@ const RS = {
           if (RS.State.codexSelection >= entries.length) RS.State.codexSelection = entries.length ? 0 : RS.State.codexSelection;
           const listX = x + 40;
           const listY = filterY + 48;
-          const listW = 260;
+          const listW = 300;
           const rowH = 44;
+          const rowGap = 10;
+          const listHeight = boxH - (listY - y) - 70;
+          const maxVisibleRows = Math.max(1, Math.floor((listHeight + rowGap) / (rowH + rowGap)));
+          const scrollStore = RS.State.codexScroll || (RS.State.codexScroll = { monsters: 0, weapons: 0, relics: 0 });
+          const filterKey = RS.State.codexFilter;
+          const maxScroll = Math.max(0, entries.length - maxVisibleRows);
+          const scrollIndex = Math.max(0, Math.min(scrollStore[filterKey] || 0, maxScroll));
+          scrollStore[filterKey] = scrollIndex;
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(listX - 2, listY - 2, listW + 4, listHeight + 4);
+          ctx.clip();
           ctx.textAlign = 'left';
-          entries.forEach((entry, i) => {
-            const rowY = listY + i * (rowH + 10);
-            const selected = RS.State.codexSelection === i;
+          entries.slice(scrollIndex, scrollIndex + maxVisibleRows).forEach((entry, visibleIdx) => {
+            const rowY = listY + visibleIdx * (rowH + rowGap);
+            const entryIndex = scrollIndex + visibleIdx;
+            const selected = RS.State.codexSelection === entryIndex;
             ctx.fillStyle = selected ? 'rgba(34,197,94,0.25)' : 'rgba(15,23,42,0.85)';
             ctx.fillRect(listX, rowY, listW, rowH);
             ctx.strokeStyle = selected ? '#22c55e' : 'rgba(148,163,184,0.4)';
@@ -4218,7 +4310,6 @@ const RS = {
             if (iconChar) {
               ctx.fillStyle = '#e2e8f0';
               ctx.font = '18px ui-sans-serif,system-ui';
-              ctx.textAlign = 'left';
               ctx.fillText(iconChar, listX + 16, rowY + 26);
               textOffset = 42;
             }
@@ -4231,10 +4322,20 @@ const RS = {
               w: listW,
               h: rowH,
               label: entry.name,
-              action: () => { RS.State.codexSelection = i; }
+              action: () => { RS.State.codexSelection = entryIndex; }
             });
           });
-          const detailX = listX + listW + 40;
+          ctx.restore();
+          if (maxScroll > 0) {
+            const indicatorY = listY + listHeight + 16;
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '12px ui-sans-serif,system-ui';
+            const hint = RS.State.codexFilter === 'relics' ? 'Scroll to see more relics' : 'Scroll to see more entries';
+            ctx.textAlign = 'center';
+            ctx.fillText(hint, listX + listW / 2, indicatorY);
+            ctx.textAlign = 'left';
+          }
+          const detailX = listX + listW + 48;
           const detailY = filterY + 40;
           const detailW = boxW - (detailX - x) - 30;
           ctx.fillStyle = 'rgba(15,23,42,0.65)';
@@ -4296,7 +4397,9 @@ const RS = {
             });
           }
         }
-        RS.UI.addBtn(W / 2 - 60, y + boxH - 50, 120, 36, 'Back', () => { RS.State.mode = 'menu'; });
+        if (!isOptions) {
+          RS.UI.addBtn(W / 2 - 60, y + boxH - 50, 120, 36, 'Back', () => { RS.State.mode = 'menu'; });
+        }
       }
       ctx.textAlign = 'start';
     }
@@ -4366,14 +4469,14 @@ const RS = {
     const capsOk = ['spinner', 'sword', 'bow', 'pierce', 'boomerang', 'storm', 'bomb', 'wake'].every(id => (RS.Registry.Relics[id]?.max === 5));
     console.assert(capsOk, 'caps=5 core');
     console.assert(!(RS.Registry.Relics.wake.canOffer && RS.Registry.Relics.wake.canOffer(S)), 'wake requires spinner (initially false)');
-    console.assert(!(RS.Registry.Relics.leech.canOffer && RS.Registry.Relics.leech.canOffer(S)), 'leech gates at 8:00 (initially false)');
+    console.assert(!(RS.Registry.Relics.leech.canOffer && RS.Registry.Relics.leech.canOffer(S)), 'leech requires sword rank 5 (initially false)');
     {
       const mockState = { stats: { damageDealt: 0 }, leechRate: 0, player: { hearts: 0, maxHearts: 0 } };
       const slime = RS.Registry.Enemies.slime.make(S, { x: 0, y: 0 });
-      RS.Systems.applyDamage(slime, 23, mockState);
+      RS.Systems.applyDamage(slime, 23, mockState, 'test');
       console.assert(!slime.suppressSplit, 'slime overkill requires ≥24 damage');
       const slime2 = RS.Registry.Enemies.slime.make(S, { x: 0, y: 0 });
-      RS.Systems.applyDamage(slime2, 24, mockState);
+      RS.Systems.applyDamage(slime2, 24, mockState, 'test');
       console.assert(slime2.suppressSplit, 'slime overkill activates at ≥24 damage');
     }
     {
