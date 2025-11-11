@@ -2840,19 +2840,36 @@ const RS = {
   // =====================================
   addEventListener('keydown', (e) => {
     RS.Audio.resume();
-    if (RS.State.paused && !RS.State.gameOver && e.metaKey && e.altKey && (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z')) {
-      RS.State.devPanelOpen = !RS.State.devPanelOpen;
-      if (RS.State.devPanelOpen) RS.State.pauseOptionsOpen = false;
+    const s = RS.State;
+    if (s.paused && !s.gameOver && e.metaKey && e.altKey && (e.code === 'KeyZ' || e.key === 'z' || e.key === 'Z')) {
+      s.devPanelOpen = !s.devPanelOpen;
+      if (s.devPanelOpen) s.pauseOptionsOpen = false;
       e.preventDefault();
       return;
     }
     RS.State.keys[e.key.toLowerCase()] = true;
-    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
-      if (RS.State.mode === 'playing' && !RS.State.gameOver) {
-        RS.State.paused = !RS.State.paused;
-        if (!RS.State.paused) {
-          RS.State.devPanelOpen = false;
-          RS.State.pauseOptionsOpen = false;
+    if (e.key === 'Escape') {
+      if (s.mode === 'playing' && !s.gameOver) {
+        s.paused = !s.paused;
+        if (!s.paused) {
+          s.devPanelOpen = false;
+          s.pauseOptionsOpen = false;
+        }
+        RS.UI.uiButtons = [];
+      } else if ([ 'how', 'options', 'credits', 'codex', 'playSelect' ].includes(s.mode)) {
+        s.mode = 'menu';
+        RS.UI.uiButtons = [];
+        RS.UI.hotspots = [];
+      }
+      e.preventDefault();
+      return;
+    }
+    if (e.key === 'p' || e.key === 'P') {
+      if (s.mode === 'playing' && !s.gameOver) {
+        s.paused = !s.paused;
+        if (!s.paused) {
+          s.devPanelOpen = false;
+          s.pauseOptionsOpen = false;
         }
         RS.UI.uiButtons = [];
       }
