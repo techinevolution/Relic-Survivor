@@ -1538,7 +1538,14 @@ const RS = {
   // =====================================
   RS.Systems = {
     timeScale(s) { return 1 + (s.elapsed / 60) * RS.Config.BALANCE.DMG_PER_MIN; },
-    effDamage(base, s) { return base * s.player.damageMult * this.timeScale(s); },
+    roundDamage(value) {
+      if (!Number.isFinite(value)) return 0;
+      return Math.max(0, Math.floor(value + 0.5));
+    },
+    effDamage(base, s) {
+      const scaled = base * s.player.damageMult * this.timeScale(s);
+      return this.roundDamage(scaled);
+    },
     weaponAvailable(s, weapon) {
       switch (weapon) {
         case 'boomerang': return true;
@@ -3763,7 +3770,7 @@ const RS = {
           case 'spinner': baseDamage = RS.Config.WEAPONS.spinner.baseDamage; break;
           default: baseDamage = 0;
         }
-        const scaledDamage = Math.round(baseDamage * s.player.damageMult);
+        const scaledDamage = RS.Systems.roundDamage(baseDamage * s.player.damageMult);
         let available = false;
         switch (entry.id) {
           case 'boomerang': available = true; break;
