@@ -68,6 +68,7 @@
 
 ## Tooling & Docs
 - [ ] Keep `Data_formats.md` in sync with new schemas (progress saves, weapon configs, enemy definitions, art metadata).
+- [ ] Persist player Options (music mute, future toggles) in the save schema and load them on boot.
 - [ ] Implement save system using `localStorage` (auto-save hooks + Options menu controls).
 - [ ] Add export/import/reset UI for saves; ensure JSON schema versioning is documented.
 
@@ -75,7 +76,7 @@
 - [ ] Capture balancing notes and open questions in Outline/ToDo during development.
 - [ ] Prototype optional Python tooling for batch-editing stage or weapon data using `Data_formats.md` schemas.
 - [ ] Update How To Play copy so manual weapon mode, click-to-attack, and new systems are represented.
-- [ ] Expand the Codex with a Relics category and ensure all relics are documented.
+- [x] Expand the Codex with a Relics category and ensure all relics are documented. ✅ Codex now includes a Relics tab with proper icons/descriptions; weapon entries cite their augments.
 
 ## Nice to Have / Later
 - [ ] Explore leaderboard or run-history export once persistence exists.

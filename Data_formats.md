@@ -20,7 +20,7 @@ This reference keeps HTML game data and any external tooling (Python notebooks, 
     "stagesCleared": ["forest-01", "ruins-02"]
   },
   "options": {
-    "mute": false,
+    "musicMuted": false,
     "screenShake": true
   }
 }

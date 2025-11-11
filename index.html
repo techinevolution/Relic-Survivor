@@ -968,7 +968,8 @@ const RS = {
       stats() {
         const cfg = RS.Config.WEAPONS.sword;
         return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type, Augments: 'Tempo Charm, Lightstone of Wisdom' };
-      }
+      },
+      icon: RS.Registry.ICON.sword
     },
     {
       id: 'boomerang',
@@ -977,8 +978,9 @@ const RS = {
       draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🪃', 72); },
       stats() {
         const cfg = RS.Config.WEAPONS.boomerang;
-        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Speed: `${cfg.baseSpeed}px/s`, Type: cfg.type, Augments: 'Skyhook Resonance, Tempo Charm' };
-      }
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Speed: `${cfg.baseSpeed}px/s`, Type: cfg.type, Augments: 'Skyhook Resonance, Tempo Charm, Lightstone of Wisdom' };
+      },
+      icon: RS.Registry.ICON.boomerang
     },
     {
       id: 'bow',
@@ -987,8 +989,9 @@ const RS = {
       draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🏹', 72); },
       stats() {
         const cfg = RS.Config.WEAPONS.bow;
-        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type, Augments: 'Riftfeather Fletching, Tempo Charm' };
-      }
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type, Augments: 'Riftfeather Fletching, Tempo Charm, Lightstone of Wisdom' };
+      },
+      icon: RS.Registry.ICON.bow
     },
     {
       id: 'storm',
@@ -998,7 +1001,8 @@ const RS = {
       stats() {
         const cfg = RS.Config.WEAPONS.storm;
         return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type, Augments: 'Tempo Charm, Lightstone of Wisdom' };
-      }
+      },
+      icon: RS.Registry.ICON.storm
     },
     {
       id: 'bomb',
@@ -1008,7 +1012,8 @@ const RS = {
       stats() {
         const cfg = RS.Config.WEAPONS.bomb;
         return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type, Augments: 'Tempo Charm, Lightstone of Wisdom' };
-      }
+      },
+      icon: RS.Registry.ICON.bomb
     },
     {
       id: 'spinner',
@@ -1018,128 +1023,72 @@ const RS = {
       stats() {
         const cfg = RS.Config.WEAPONS.spinner;
         return { Damage: cfg.baseDamage, Cooldown: 'N/A', Type: cfg.type, Augments: 'Whirring Wake, Lightstone of Wisdom' };
-      }
+      },
+      icon: RS.Registry.ICON.spinner
     }
   ];
   const CodexRelics = [
     {
-      id: 'spinner',
-      name: 'Forest Spinner',
-      blurb: 'Unlocks the blade ring; each rank adds another blade and widens the orbit.',
-      type: 'Weapon Core',
-      max: 5,
-      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
-    },
-    {
-      id: 'sword',
-      name: 'Brambleblade',
-      blurb: 'Summons the sweeping sword; ranks widen the arc for better crowd control.',
-      type: 'Weapon Core',
-      max: 5,
-      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
-    },
-    {
-      id: 'bow',
-      name: 'Voyager Bow',
-      blurb: 'Fires a growing volley; each rank adds another arrow to the spread.',
-      type: 'Weapon Core',
-      max: 5,
-      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
-    },
-    {
-      id: 'boomerang',
-      name: 'Skyhook Loop',
-      blurb: 'Charged throws that add an extra boomerang and shorter cooldown per rank.',
-      type: 'Weapon Core',
-      max: 5,
-      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
-    },
-    {
-      id: 'storm',
-      name: 'Skybrand Sigil',
-      blurb: 'Chain lightning focus; ranks add an extra branch and reduce cooldown.',
-      type: 'Weapon Core',
-      max: 5,
-      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
-    },
-    {
-      id: 'bomb',
-      name: 'Bombbloom',
-      blurb: 'Plants explosive seeds; ranks add trailing blooms and bigger bursts.',
-      type: 'Weapon Core',
-      max: 5,
-      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
-    },
-    {
       id: 'hook',
       name: 'Skyhook Resonance',
-      blurb: 'Expands boomerang pickup radius; each rank increases the scoop range.',
-      type: 'Weapon Augment',
-      max: 5,
+      blurb: 'Expands boomerang pickup radius; each rank widens the scoop for faster XP vacuuming.',
+      icon: RS.Registry.ICON.hook,
       stats() { return { 'Max Rank': 5, Role: 'Weapon Augment', Unlock: 'Requires Skyhook Loop rank 5' }; }
     },
     {
       id: 'pierce',
       name: 'Riftfeather Fletching',
-      blurb: 'Arrows pierce +1 foe per rank and get a touch more speed.',
-      type: 'Weapon Augment',
-      max: 5,
+      blurb: 'Arrows pierce one extra foe per rank and gain a touch of speed.',
+      icon: RS.Registry.ICON.pierce,
       stats() { return { 'Max Rank': 5, Role: 'Weapon Augment', Unlock: 'Requires Voyager Bow rank 5' }; }
     },
     {
       id: 'wake',
       name: 'Whirring Wake',
-      blurb: 'Spinner blades leave fading trails; higher ranks lengthen the wake and spawn it more often.',
-      type: 'Weapon Augment',
-      max: 5,
+      blurb: 'Spinner blades leave fading trails; higher ranks extend the wake and spawn it more often.',
+      icon: RS.Registry.ICON.wake,
       stats() { return { 'Max Rank': 5, Role: 'Weapon Augment', Unlock: 'Requires Forest Spinner rank 5' }; }
     },
     {
       id: 'magnet',
       name: 'Magnet Rune',
-      blurb: 'Expands XP pickup radius each rank and boosts the chance for vacuum drops.',
-      type: 'Global',
-      max: 5,
+      blurb: 'Expands XP pickup radius and nudges the chance of vacuum drops.',
+      icon: RS.Registry.ICON.magnet,
       stats() { return { 'Max Rank': 5, Role: 'Global' }; }
     },
     {
       id: 'bead',
       name: 'Guardian Bead',
-      blurb: 'Adds +1 max heart and heals 1 on pickup; keep stacking for survivability.',
-      type: 'Global',
-      max: 8,
+      blurb: 'Adds +1 max heart and heals 1 upon pickup; stack for sustain.',
+      icon: RS.Registry.ICON.bead,
       stats() { return { 'Max Rank': 8, Role: 'Global' }; }
     },
     {
       id: 'tempo',
       name: 'Tempo Charm',
-      blurb: 'Raises global attack speed by 10% per rank and pushes boomerang flight speed higher.',
-      type: 'Global',
-      max: 10,
+      blurb: 'Boosts global attack speed by 10% per rank and accelerates boomerang flight.',
+      icon: RS.Registry.ICON.tempo,
       stats() { return { 'Max Rank': 10, Role: 'Global' }; }
     },
     {
       id: 'leech',
       name: 'Sanguine Thread',
-      blurb: 'Converts a sliver of damage into healing, scaling with rank once it unlocks mid-run.',
-      type: 'Global',
-      max: 5,
-      stats() { return { 'Max Rank': 5, Role: 'Global', Unlock: 'Appears after 8:00' }; }
+      blurb: 'Converts a sliver of dealt damage into healing once it appears mid-run.',
+      icon: RS.Registry.ICON.leech,
+      stats() { return { 'Max Rank': 5, Role: 'Global', Unlock: 'Appears after 8:00 elapsed' }; }
     },
     {
       id: 'wisdom',
       name: 'Lightstone of Wisdom',
-      blurb: 'All outgoing damage climbs by 15% per rank—stacks multiplicatively.',
-      type: 'Global',
-      max: 10,
+      blurb: 'All outgoing damage climbs by 15% per rank and stacks multiplicatively.',
+      icon: RS.Registry.ICON.wisdom,
       stats() { return { 'Max Rank': 10, Role: 'Global' }; }
     },
     {
       id: 'xp',
       name: 'Spirit Ledger',
-      blurb: 'Boosts XP gain by 20% each rank to accelerate level-ups.',
-      type: 'Global',
-      max: 10,
+      blurb: 'XP gain increases by 20% per rank to accelerate level-ups.',
+      icon: RS.Registry.ICON.xp,
       stats() { return { 'Max Rank': 10, Role: 'Global' }; }
     }
   ];
@@ -4254,7 +4203,7 @@ const RS = {
           if (RS.State.codexSelection >= entries.length) RS.State.codexSelection = entries.length ? 0 : RS.State.codexSelection;
           const listX = x + 40;
           const listY = filterY + 48;
-          const listW = 220;
+          const listW = 260;
           const rowH = 44;
           ctx.textAlign = 'left';
           entries.forEach((entry, i) => {
@@ -4264,9 +4213,18 @@ const RS = {
             ctx.fillRect(listX, rowY, listW, rowH);
             ctx.strokeStyle = selected ? '#22c55e' : 'rgba(148,163,184,0.4)';
             ctx.strokeRect(listX, rowY, listW, rowH);
+            const iconChar = entry.icon || (RS.State.codexFilter !== 'monsters' ? RS.Registry.ICON[entry.id] : '');
+            let textOffset = 16;
+            if (iconChar) {
+              ctx.fillStyle = '#e2e8f0';
+              ctx.font = '18px ui-sans-serif,system-ui';
+              ctx.textAlign = 'left';
+              ctx.fillText(iconChar, listX + 16, rowY + 26);
+              textOffset = 42;
+            }
             ctx.fillStyle = '#e2e8f0';
             ctx.font = '15px ui-sans-serif,system-ui';
-            ctx.fillText(entry.name, listX + 16, rowY + 26);
+            ctx.fillText(entry.name, listX + textOffset, rowY + 26);
             RS.UI.uiButtons.push({
               x: listX,
               y: rowY,
@@ -4292,7 +4250,15 @@ const RS = {
             ctx.clip();
             const drawX = detailX + 100;
             const drawY = detailY + 100;
-            if (entry.draw) entry.draw(ctx, drawX, drawY, 3);
+            if (RS.State.codexFilter === 'relics') {
+              ctx.fillStyle = '#e2e8f0';
+              ctx.font = '64px ui-sans-serif,system-ui';
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(entry.icon || RS.Registry.ICON[entry.id] || '★', drawX, drawY);
+            } else if (entry.draw) {
+              entry.draw(ctx, drawX, drawY, 3);
+            }
             ctx.restore();
             ctx.fillStyle = '#e2e8f0';
             ctx.font = '18px ui-sans-serif,system-ui';
@@ -4323,8 +4289,10 @@ const RS = {
               statsObj = entry.stats ? entry.stats() : {};
             }
             const statKeys = Object.keys(statsObj || {});
-            statKeys.forEach((key, idx) => {
-              ctx.fillText(`${key}: ${statsObj[key]}`, detailX + 200, statStartY + idx * 20);
+            let statLineY = statStartY;
+            statKeys.forEach((key) => {
+              const bottom = drawWrappedText(ctx, `${key}: ${statsObj[key]}`, detailX + 200, statLineY, detailW - 220, 18);
+              statLineY = bottom + 18;
             });
           }
         }

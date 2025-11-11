@@ -19,6 +19,11 @@
   - Leaderboard-ready once persistence exists.
   - Unlock condition: collect every weapon in Adventure (temporarily open for development/testing builds).
 
+## Recent Systems (Nov 2024)
+- **Audio & Options**: Inline music manager now cycles four Arcade tracks, runs the menu loop with crossfades, and exposes a Music toggle under Options (title or pause menu). Respect `settings.musicMuted` anywhere new audio is added.
+- **Codex Expansion**: Codex panel now has Monsters, Weapons, and Relics tabs. Weapon blurbs mention modifying relics (Lightstone included on all); relic tab should include future augments/globals with icons and unlock notes.
+- **Spinner / Whirring Wake**: Trails emit on a timer, use smaller hitboxes, and deal `spinner damage × (0.25 → 0.45)` at 4 ticks/sec so Wake is supportive instead of AFK dominant. Keep new tuning in mind when adding cadence buffs.
+
 ## Progression & Persistence
 - Add a save record (localStorage or exportable JSON) storing:
   - Unlocked weapons/relics.

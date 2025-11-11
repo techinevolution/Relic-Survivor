@@ -84,3 +84,5 @@
 ## Update Log
 - 2024-10-31 – Azure slimes vaporize when struck for ≥2× their max HP (e.g., 24+ damage), skip splitting, and drop two XP orbs offset left/right to signal the overkill.
 - 2024-10-31 – Bombbloom cooldown now restores full ammo clip, trailing bombs wait a flat 0.35s between plants (independent of attack speed), manual throws arc to the click point with a bounce before arming, the planted bombs use a custom sprite with fuse VFX, and explosions apply full damage on contact.
+- 2024-11-10 – Added the JS audio manager with four-track Arcade playlist, menu music crossfades, and Options toggle (title/pause) that flips `settings.musicMuted`; dev tools now open via ⌘ + ⌥ + Z while paused.
+- 2024-11-10 – Codex expanded with Relics tab (weapon descriptions now show augmenting relics) and Whirring Wake trails heavily nerfed (lower damage, tiny wake, timed emission) so Spinner isn’t an AFK win button.
