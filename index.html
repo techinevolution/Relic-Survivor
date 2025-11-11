@@ -934,69 +934,216 @@ const RS = {
     ctx.fillText(emoji, 0, 0);
     ctx.restore();
   }
+
+  function wrapLines(ctx, text, maxWidth) {
+    if (!text) return [];
+    const words = text.split(/\s+/);
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      const testLine = line ? `${line} ${word}` : word;
+      if (ctx.measureText(testLine).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = testLine;
+      }
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+
+  function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight = 18) {
+    const lines = wrapLines(ctx, text, maxWidth);
+    lines.forEach((line, idx) => ctx.fillText(line, x, y + idx * lineHeight));
+    if (!lines.length) return y;
+    return y + (lines.length - 1) * lineHeight;
+  }
   const CodexWeapons = [
     {
       id: 'sword',
       name: RS.Config.WEAPONS.sword.name,
-      blurb: RS.Config.WEAPONS.sword.desc,
+      blurb: 'Sweeping blade that widens its arc with every rank. Tempo Charm speeds the swing while Lightstone of Wisdom boosts each cut.',
       draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🗡️', 72); },
       stats() {
         const cfg = RS.Config.WEAPONS.sword;
-        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type, Augments: 'Tempo Charm, Lightstone of Wisdom' };
       }
     },
     {
       id: 'boomerang',
       name: RS.Config.WEAPONS.boomerang.name,
-      blurb: `${RS.Config.WEAPONS.boomerang.desc} Tempo Charm boosts its travel speed.`,
+      blurb: 'Charged throws return spoils; ranks add extra boomerangs and trim cooldown. Skyhook Resonance widens the pickup scoop and Tempo Charm accelerates flight.',
       draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🪃', 72); },
       stats() {
         const cfg = RS.Config.WEAPONS.boomerang;
-        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Speed: `${cfg.baseSpeed}px/s`, Type: cfg.type };
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Speed: `${cfg.baseSpeed}px/s`, Type: cfg.type, Augments: 'Skyhook Resonance, Tempo Charm' };
       }
     },
     {
       id: 'bow',
       name: RS.Config.WEAPONS.bow.name,
-      blurb: RS.Config.WEAPONS.bow.desc,
+      blurb: 'Volley weapon that gains extra arrows per rank for wider coverage. Riftfeather Fletching lets shots pierce while Tempo Charm shortens the draw.',
       draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🏹', 72); },
       stats() {
         const cfg = RS.Config.WEAPONS.bow;
-        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type, Augments: 'Riftfeather Fletching, Tempo Charm' };
       }
     },
     {
       id: 'storm',
       name: RS.Config.WEAPONS.storm.name,
-      blurb: RS.Config.WEAPONS.storm.desc,
+      blurb: 'Chain lightning that gains extra jumps and faster recharge with rank. Tempo Charm trims downtime and Lightstone of Wisdom amps every bolt.',
       draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '⚡', 72); },
       stats() {
         const cfg = RS.Config.WEAPONS.storm;
-        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type, Augments: 'Tempo Charm, Lightstone of Wisdom' };
       }
     },
     {
       id: 'bomb',
       name: RS.Config.WEAPONS.bomb.name,
-      blurb: RS.Config.WEAPONS.bomb.desc,
+      blurb: 'Seed bombs drop on cooldown; ranks add trailing blooms and wider blasts. Tempo Charm refills ammo faster and Lightstone strengthens the eruption.',
       draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '💣', 72); },
       stats() {
         const cfg = RS.Config.WEAPONS.bomb;
-        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type };
+        return { Damage: cfg.baseDamage, Cooldown: cfg.baseCooldown, Type: cfg.type, Augments: 'Tempo Charm, Lightstone of Wisdom' };
       }
     },
     {
       id: 'spinner',
       name: RS.Config.WEAPONS.spinner.name,
-      blurb: RS.Config.WEAPONS.spinner.desc,
+      blurb: 'Orbiting blades add more arms and radius each rank. Whirring Wake leaves damaging trails while Lightstone of Wisdom scales both blades and wake ticks.',
       draw(ctx, x, y) { drawWeaponIcon(ctx, x, y, '🌀', 72); },
       stats() {
         const cfg = RS.Config.WEAPONS.spinner;
-        return { Damage: cfg.baseDamage, Cooldown: 'N/A', Type: cfg.type };
+        return { Damage: cfg.baseDamage, Cooldown: 'N/A', Type: cfg.type, Augments: 'Whirring Wake, Lightstone of Wisdom' };
       }
     }
   ];
-  RS.Registry.Codex = { monsters: Bestiary, weapons: CodexWeapons };
+  const CodexRelics = [
+    {
+      id: 'spinner',
+      name: 'Forest Spinner',
+      blurb: 'Unlocks the blade ring; each rank adds another blade and widens the orbit.',
+      type: 'Weapon Core',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
+    },
+    {
+      id: 'sword',
+      name: 'Brambleblade',
+      blurb: 'Summons the sweeping sword; ranks widen the arc for better crowd control.',
+      type: 'Weapon Core',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
+    },
+    {
+      id: 'bow',
+      name: 'Voyager Bow',
+      blurb: 'Fires a growing volley; each rank adds another arrow to the spread.',
+      type: 'Weapon Core',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
+    },
+    {
+      id: 'boomerang',
+      name: 'Skyhook Loop',
+      blurb: 'Charged throws that add an extra boomerang and shorter cooldown per rank.',
+      type: 'Weapon Core',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
+    },
+    {
+      id: 'storm',
+      name: 'Skybrand Sigil',
+      blurb: 'Chain lightning focus; ranks add an extra branch and reduce cooldown.',
+      type: 'Weapon Core',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
+    },
+    {
+      id: 'bomb',
+      name: 'Bombbloom',
+      blurb: 'Plants explosive seeds; ranks add trailing blooms and bigger bursts.',
+      type: 'Weapon Core',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Weapon Core' }; }
+    },
+    {
+      id: 'hook',
+      name: 'Skyhook Resonance',
+      blurb: 'Expands boomerang pickup radius; each rank increases the scoop range.',
+      type: 'Weapon Augment',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Weapon Augment', Unlock: 'Requires Skyhook Loop rank 5' }; }
+    },
+    {
+      id: 'pierce',
+      name: 'Riftfeather Fletching',
+      blurb: 'Arrows pierce +1 foe per rank and get a touch more speed.',
+      type: 'Weapon Augment',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Weapon Augment', Unlock: 'Requires Voyager Bow rank 5' }; }
+    },
+    {
+      id: 'wake',
+      name: 'Whirring Wake',
+      blurb: 'Spinner blades leave fading trails; higher ranks lengthen the wake and spawn it more often.',
+      type: 'Weapon Augment',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Weapon Augment', Unlock: 'Requires Forest Spinner rank 5' }; }
+    },
+    {
+      id: 'magnet',
+      name: 'Magnet Rune',
+      blurb: 'Expands XP pickup radius each rank and boosts the chance for vacuum drops.',
+      type: 'Global',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Global' }; }
+    },
+    {
+      id: 'bead',
+      name: 'Guardian Bead',
+      blurb: 'Adds +1 max heart and heals 1 on pickup; keep stacking for survivability.',
+      type: 'Global',
+      max: 8,
+      stats() { return { 'Max Rank': 8, Role: 'Global' }; }
+    },
+    {
+      id: 'tempo',
+      name: 'Tempo Charm',
+      blurb: 'Raises global attack speed by 10% per rank and pushes boomerang flight speed higher.',
+      type: 'Global',
+      max: 10,
+      stats() { return { 'Max Rank': 10, Role: 'Global' }; }
+    },
+    {
+      id: 'leech',
+      name: 'Sanguine Thread',
+      blurb: 'Converts a sliver of damage into healing, scaling with rank once it unlocks mid-run.',
+      type: 'Global',
+      max: 5,
+      stats() { return { 'Max Rank': 5, Role: 'Global', Unlock: 'Appears after 8:00' }; }
+    },
+    {
+      id: 'wisdom',
+      name: 'Lightstone of Wisdom',
+      blurb: 'All outgoing damage climbs by 15% per rank—stacks multiplicatively.',
+      type: 'Global',
+      max: 10,
+      stats() { return { 'Max Rank': 10, Role: 'Global' }; }
+    },
+    {
+      id: 'xp',
+      name: 'Spirit Ledger',
+      blurb: 'Boosts XP gain by 20% each rank to accelerate level-ups.',
+      type: 'Global',
+      max: 10,
+      stats() { return { 'Max Rank': 10, Role: 'Global' }; }
+    }
+  ];
+  RS.Registry.Codex = { monsters: Bestiary, weapons: CodexWeapons, relics: CodexRelics };
 
   // =====================================
   // Relics
@@ -4077,7 +4224,8 @@ const RS = {
           ctx.fillText('Review foes and gear before the next run.', W / 2, y + 58);
           const filters = [
             { id: 'monsters', label: 'Monsters' },
-            { id: 'weapons', label: 'Weapons' }
+            { id: 'weapons', label: 'Weapons' },
+            { id: 'relics', label: 'Relics' }
           ];
           const filterY = y + 80;
           const filterW = 120;
@@ -4097,7 +4245,12 @@ const RS = {
               }
             });
           });
-          const entries = RS.State.codexFilter === 'weapons' ? RS.Registry.Codex.weapons : RS.Registry.Codex.monsters;
+          let entries;
+          switch (RS.State.codexFilter) {
+            case 'weapons': entries = RS.Registry.Codex.weapons; break;
+            case 'relics': entries = RS.Registry.Codex.relics; break;
+            default: entries = RS.Registry.Codex.monsters; break;
+          }
           if (RS.State.codexSelection >= entries.length) RS.State.codexSelection = entries.length ? 0 : RS.State.codexSelection;
           const listX = x + 40;
           const listY = filterY + 48;
@@ -4147,8 +4300,12 @@ const RS = {
             ctx.fillStyle = '#94a3b8';
             ctx.font = '13px ui-sans-serif,system-ui';
             ctx.textAlign = 'left';
-            ctx.fillText(entry.blurb || '', detailX + 200, detailY + 72);
-            const statStartY = detailY + 110;
+            const textX = detailX + 200;
+            const textY = detailY + 72;
+            const textWidth = detailW - 220;
+            const hasBlurb = !!(entry.blurb && entry.blurb.length);
+            const wrapBottom = drawWrappedText(ctx, entry.blurb || '', textX, textY, textWidth, 18);
+            const statStartY = hasBlurb ? wrapBottom + 30 : detailY + 110;
             ctx.fillStyle = '#cbd5f5';
             ctx.font = '13px ui-sans-serif,system-ui';
             let statsObj;
@@ -4160,6 +4317,8 @@ const RS = {
                 Damage: RS.Util.heartsLabel(cfg.damage),
                 XP: cfg.xp ?? '?'
               };
+            } else if (RS.State.codexFilter === 'relics') {
+              statsObj = entry.stats ? entry.stats() : { 'Max Rank': entry.max ?? '—' };
             } else {
               statsObj = entry.stats ? entry.stats() : {};
             }
