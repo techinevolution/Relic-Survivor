@@ -3526,10 +3526,42 @@ const RS = {
       ctx.fillStyle = '#94a3b8';
       ctx.font = '11px ui-sans-serif,system-ui';
       ctx.fillText(`LV ${s.player.level}`, W / 2, 34);
-      ctx.fillStyle = C.hudText;
-      ctx.textAlign = 'right';
-      ctx.font = '12px ui-sans-serif,system-ui';
-      ctx.fillText('P for Pause', W - 10, 22);
+      const pauseBtn = { x: W - 62, y: 8, w: 48, h: 28 };
+      ctx.save();
+      ctx.fillStyle = '#0d2535';
+      ctx.strokeStyle = '#3a6b82';
+      ctx.lineWidth = 2;
+      const radius = 6;
+      ctx.beginPath();
+      ctx.moveTo(pauseBtn.x + radius, pauseBtn.y);
+      ctx.lineTo(pauseBtn.x + pauseBtn.w - radius, pauseBtn.y);
+      ctx.quadraticCurveTo(pauseBtn.x + pauseBtn.w, pauseBtn.y, pauseBtn.x + pauseBtn.w, pauseBtn.y + radius);
+      ctx.lineTo(pauseBtn.x + pauseBtn.w, pauseBtn.y + pauseBtn.h - radius);
+      ctx.quadraticCurveTo(pauseBtn.x + pauseBtn.w, pauseBtn.y + pauseBtn.h, pauseBtn.x + pauseBtn.w - radius, pauseBtn.y + pauseBtn.h);
+      ctx.lineTo(pauseBtn.x + radius, pauseBtn.y + pauseBtn.h);
+      ctx.quadraticCurveTo(pauseBtn.x, pauseBtn.y + pauseBtn.h, pauseBtn.x, pauseBtn.y + pauseBtn.h - radius);
+      ctx.lineTo(pauseBtn.x, pauseBtn.y + radius);
+      ctx.quadraticCurveTo(pauseBtn.x, pauseBtn.y, pauseBtn.x + radius, pauseBtn.y);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#f5f5f5';
+      const barWidth = 8;
+      const barHeight = pauseBtn.h - 10;
+      const barY = pauseBtn.y + (pauseBtn.h - barHeight) / 2;
+      ctx.fillRect(pauseBtn.x + 12, barY, barWidth, barHeight);
+      ctx.fillRect(pauseBtn.x + pauseBtn.w - 12 - barWidth, barY, barWidth, barHeight);
+      ctx.restore();
+      RS.UI.addHotspot(pauseBtn.x, pauseBtn.y, pauseBtn.w, pauseBtn.h, () => {
+        if (RS.State.mode === 'playing' && !RS.State.gameOver) {
+          RS.State.paused = !RS.State.paused;
+          if (!RS.State.paused) {
+            RS.State.devPanelOpen = false;
+            RS.State.pauseOptionsOpen = false;
+          }
+          RS.UI.uiButtons = [];
+        }
+      });
       RS.Render.weaponBar();
       const xpPct = s.player.xpTo > 0 ? Math.min(s.player.xp / s.player.xpTo, 0.999) : 0;
       const xpHeight = 16;
