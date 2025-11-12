@@ -1543,7 +1543,7 @@ const RS = {
       return Math.max(0, Math.floor(value + 0.5));
     },
     effDamage(base, s) {
-      const scaled = base * s.player.damageMult * this.timeScale(s);
+      const scaled = base * s.player.damageMult;
       return this.roundDamage(scaled);
     },
     weaponAvailable(s, weapon) {
@@ -3734,7 +3734,7 @@ const RS = {
         { id: 'bomb', label: 'Bombbloom', state: s.bomb },
         { id: 'spinner', label: 'Spinner', state: s.spinner }
       ];
-      const rowW = 260, rowH = 34, rowGap = 8, rowStartOffset = 36;
+      const rowW = 260, rowH = 34, rowGap = 8, manualBtnHeight = 28, rowStartOffset = manualBtnHeight + 36;
       const weaponListHeight = rowStartOffset + rowH + Math.max(0, weaponEntries.length - 1) * (rowH + rowGap);
       const weaponIds = new Set(weaponEntries.map(w => w.id));
       const taken = Object.values(RS.Registry.Relics)
@@ -3793,14 +3793,16 @@ const RS = {
       ctx.font = '14px ui-sans-serif,system-ui';
       ctx.fillStyle = '#e2e8f0';
       ctx.fillText('Weapons', wx, wy);
-      ctx.font = '11px ui-sans-serif,system-ui';
-      ctx.fillStyle = '#94a3b8';
-      const pauseTip = s.controlMode === 'manual'
-        ? 'Click a weapon to assign Manual control • Scroll wheel swaps in play'
-        : 'Switch Attack Mode to Manual in Options to aim weapons yourself';
-      ctx.fillText(pauseTip, wx, wy + 14);
+      const manualBtnLabel = s.controlMode === 'manual' ? 'Full Auto Mode' : 'Manual Mode';
+      const manualBtnX = wx - 10;
+      const manualBtnY = wy + 10;
+      RS.Render.drawButton(manualBtnX, manualBtnY, rowW, manualBtnHeight, manualBtnLabel);
+      RS.UI.addHotspot(manualBtnX, manualBtnY, rowW, manualBtnHeight, () => {
+        const next = s.controlMode === 'manual' ? 'auto' : 'manual';
+        RS.Systems.setControlMode(RS.State, next);
+      });
       ctx.textBaseline = 'alphabetic';
-      const rowTopBase = wy + rowStartOffset;
+      const rowTopBase = manualBtnY + manualBtnHeight + 10;
       weaponEntries.forEach((entry, i) => {
         const rowX = wx - 10;
         const rowY = rowTopBase + i * (rowH + rowGap);
