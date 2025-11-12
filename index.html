@@ -528,6 +528,7 @@ const RS = {
       DMG_PER_MIN: 0.12,
       XP_EPS: 1e-6,
       LEECH_APPLY_RATE: 0.4,
+      MAX_HEALS_ON_FIELD: 3,
       BAT_START_S: 180,
       BAT_BASE_PERIOD_S: 12,
       BAT_MIN_PERIOD_S: 6,
@@ -1660,23 +1661,9 @@ const RS = {
       s.vacuumDrops.push({ x: s.player.x, y: s.player.y, t: 0, life: 12, pulse: 0 });
     },
     collectAllXp(s) {
-      let total = 0;
-      for (const o of s.orbs) total += o.v;
-      s.orbs.length = 0;
-      if (total > 0) {
-        s.player.xp += total * s.player.xpGain;
-        while (s.player.xp + RS.Config.BALANCE.XP_EPS >= s.player.xpTo) {
-          const from = s.player.level;
-          s.player.xp -= s.player.xpTo;
-          s.player.level += 1;
-          const nextLevel = s.player.level;
-          const mult = nextLevel <= 10 ? 1.22 : 1.12;
-          const add = nextLevel <= 10 ? 8 : 4;
-          s.player.xpTo = Math.floor(s.player.xpTo * mult + add);
-          RS.State.levelUpFrom = from;
-          RS.State.levelUpTo = s.player.level;
-          RS.UI.rollChoices();
-        }
+      if (!s.orbs.length) return;
+      for (const o of s.orbs) {
+        o.vacuum = true;
       }
     },
     updateStormProfile(s) {
@@ -1969,7 +1956,6 @@ const RS = {
         orbitAngle: 0,
         orbitRadius: 0,
         carryXp: 0,
-        carryHeals: 0,
         heading: angle,
         spinAngle: 0,
         spinSpeed: (Math.random() < 0.5 ? -1 : 1) * 18,
@@ -2082,15 +2068,6 @@ const RS = {
             s.orbs.splice(j, 1);
           }
         }
-        for (let j = s.heals.length - 1; j >= 0; j--) {
-          const h = s.heals[j];
-          if (s.player.hearts >= s.player.maxHearts) continue;
-          if (RS.Util.dist2(b.x, b.y, h.x, h.y) < data.collectRadius * data.collectRadius) {
-            b.carryHeals += 1;
-            s.heals.splice(j, 1);
-          }
-        }
-
         const distToPlayer2 = RS.Util.dist2(b.x, b.y, s.player.x, s.player.y);
         if (!b.hasLeftPlayer && distToPlayer2 > (s.player.r + 18) ** 2) b.hasLeftPlayer = true;
         if (b.stage === 'out' && b.distance >= data.range) startReturn(b);
@@ -2110,14 +2087,6 @@ const RS = {
               RS.State.levelUpTo = s.player.level;
               RS.UI.rollChoices();
             }
-          }
-          while (b.carryHeals > 0 && s.player.hearts < s.player.maxHearts) {
-            s.player.hearts += 1;
-            b.carryHeals--;
-          }
-          while (b.carryHeals > 0) {
-            s.heals.push({ x: s.player.x, y: s.player.y, phase: 0 });
-            b.carryHeals--;
           }
           const maxAmmo = data.maxAmmo || 0;
           if (maxAmmo > 0) {
@@ -2490,11 +2459,17 @@ const RS = {
     },
     pickups(dt, s) {
       for (let i = s.orbs.length - 1; i >= 0; i--) {
-        const o = s.orbs[i], d2v = RS.Util.dist2(o.x, o.y, s.player.x, s.player.y), pr = s.player.pickup;
-        if (d2v < pr * pr) {
-          const d = Math.sqrt(d2v) || 1, nx = (s.player.x - o.x) / d, ny = (s.player.y - o.y) / d;
-          o.x += nx * 240 * dt; o.y += ny * 240 * dt;
-          if (d < 6) {
+        const o = s.orbs[i];
+        const dx = s.player.x - o.x;
+        const dy = s.player.y - o.y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const pr = s.player.pickup;
+        const vacuuming = !!o.vacuum;
+        if (vacuuming || dist < pr) {
+          const speed = vacuuming ? 420 : 240;
+          o.x += (dx / dist) * speed * dt;
+          o.y += (dy / dist) * speed * dt;
+          if (dist < 6) {
             s.player.xp += o.v * s.player.xpGain;
             s.orbs.splice(i, 1);
             while (s.player.xp + RS.Config.BALANCE.XP_EPS >= s.player.xpTo) {
@@ -2584,15 +2559,16 @@ const RS = {
           } else if (!isSlime) {
             s.orbs.push({ x: e.x, y: e.y, v: xpValue });
           }
-          if (Math.random() < 0.005) s.heals.push({ x: e.x, y: e.y, phase: 0 });
-          const magnetRank = s.levels.magnet || 0;
-          if (magnetRank > 0) {
-            const baseChance = 0.0001;
-            const maxChance = 0.0003;
-            const step = magnetRank > 1 ? (maxChance - baseChance) / 4 : 0;
-            const chance = Math.min(maxChance, baseChance + step * Math.max(0, magnetRank - 1));
-            if (Math.random() < chance) s.vacuumDrops.push({ x: e.x, y: e.y, t: 0, life: 12, pulse: 0 });
+          const maxHeals = RS.Config.BALANCE.MAX_HEALS_ON_FIELD ?? Infinity;
+          if (s.heals.length < maxHeals && Math.random() < 0.005) {
+            s.heals.push({ x: e.x, y: e.y, phase: 0 });
           }
+          const magnetRank = Math.max(0, s.levels.magnet || 0);
+          const baseChance = 0.0001;
+          const maxChance = 0.0003;
+          const step = (maxChance - baseChance) / 5;
+          const chance = Math.min(maxChance, baseChance + step * Math.min(5, magnetRank));
+          if (Math.random() < chance) s.vacuumDrops.push({ x: e.x, y: e.y, t: 0, life: 12, pulse: 0 });
           removeEnemy();
         }
       }
