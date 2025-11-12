@@ -42,6 +42,7 @@
 - [x] Give Bombbloom a bomb-shaped sprite and VFX so it reads clearly in play.  ✅ new sprite + detonation flash.
 - [ ] Add a relic that unlocks Skybrand branching at rank 5 instead of the rank itself.
 - [x] Adjust Sanguine Thread to boost only the sword and gate its rank-ups behind Sword Rank 5.  ✅ Now a Brambleblade-only augment unlocked at sword rank 5.
+- [ ] Wire up the new weapon SFX set (files landed under Audio/SFX/) so each weapon fire/use cue plays an appropriate sound.
 
 ## Enemies & Encounters
 - [x] Slimes: add delay before split children become targetable/damageable.  ✅ parent shakes then spawns staggered minis.
