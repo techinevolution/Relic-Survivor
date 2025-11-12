@@ -76,7 +76,7 @@
 - [ ] Expand `AGENTS.md` with Arcade/Adventure mode vocabulary once changes land.
 - [ ] Capture balancing notes and open questions in Outline/ToDo during development.
 - [ ] Prototype optional Python tooling for batch-editing stage or weapon data using `Data_formats.md` schemas.
-- [ ] Update How To Play copy so manual weapon mode, click-to-attack, and new systems are represented.
+- [x] Update How To Play copy so manual weapon mode, click-to-attack, and new systems are represented. ✅ Pause overlay + How To Play panel now describe Manual Mode, click aiming, and options toggle.
 - [x] Expand the Codex with a Relics category and ensure all relics are documented. ✅ Codex now includes a Relics tab with proper icons/descriptions; weapon entries cite their augments.
 
 ## Nice to Have / Later

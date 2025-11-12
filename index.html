@@ -1779,6 +1779,13 @@ const RS = {
     devToggleInvulnerability() {
       RS.State.devInvulnerable = !RS.State.devInvulnerable;
     },
+    devAdjustTime(delta) {
+      const s = RS.State;
+      if (typeof delta !== 'number' || !Number.isFinite(delta)) return;
+      const next = Math.max(0, s.elapsed + delta);
+      s.elapsed = next;
+      s.modeBannerTimer = Math.max(0, s.modeBannerTimer - delta);
+    },
     onDamage(dealt, s, source) {
       if (!dealt || dealt <= 0) return;
       s.stats.damageDealt += dealt;
@@ -3701,7 +3708,7 @@ const RS = {
     pause() {
       const { W, H } = RS.Config, s = RS.State;
       const devOpen = !!s.devPanelOpen;
-      const devW = devOpen ? 280 : 0;
+      const devW = devOpen ? 360 : 0;
       const weaponEntries = [
         { id: 'boomerang', label: 'Boomerang', state: s.boomerang },
         { id: 'sword', label: 'Sword', state: s.sword },
@@ -3765,7 +3772,9 @@ const RS = {
       ctx.textAlign = 'left';
       ctx.font = '12px ui-sans-serif,system-ui';
       ctx.fillStyle = '#a5b4fc';
-      ctx.fillText(`Global Damage ×${s.player.damageMult.toFixed(2)}`, wx, wy - 12);
+      ctx.textAlign = 'center';
+      ctx.fillText(`Global Damage ×${s.player.damageMult.toFixed(2)}`, x + w / 2, wy - 18);
+      ctx.textAlign = 'left';
       ctx.font = '14px ui-sans-serif,system-ui';
       ctx.fillStyle = '#e2e8f0';
       ctx.fillText('Weapons', wx, wy);
@@ -3929,32 +3938,69 @@ const RS = {
       ctx.font = '12px ui-sans-serif,system-ui';
       ctx.fillText(`Invulnerability: ${s.devInvulnerable ? 'ON' : 'OFF'}`, toggleX + 10, toggleY + 17);
       RS.UI.addHotspot(toggleX, toggleY, toggleW, toggleH, () => { RS.Systems.devToggleInvulnerability(); });
-      const baseY = toggleY + toggleH + 28;
-      const layout = [
-        { type: 'heading', label: 'Weapon Ranks' },
-        { id: 'sword', label: 'Sword', max: 5 },
-        { id: 'boomerang', label: 'Boomerang', max: 5, min: 1 },
-        { id: 'bow', label: 'Bow', max: 5 },
-        { id: 'storm', label: 'Skybrand', max: 5 },
-        { id: 'bomb', label: 'Bombbloom', max: 5 },
-        { id: 'spinner', label: 'Spinner', max: 5 },
-        { type: 'heading', label: 'Relics & Globals' },
-        { id: 'magnet', label: 'Magnet Rune', max: 5 },
-        { id: 'tempo', label: 'Tempo Charm', max: 10 },
-        { id: 'bead', label: 'Guardian Bead', max: 8 },
-        { id: 'leech', label: 'Sanguine Thread', max: 5 },
-        { id: 'wisdom', label: 'Lightstone', max: 10 },
-        { id: 'xp', label: 'Spirit Ledger', max: 10 },
-        { id: 'hook', label: 'Skyhook Resonance', max: 5 },
-        { id: 'wake', label: 'Whirring Wake', max: 5 }
+      const timeBoxY = toggleY + toggleH + 18;
+      const timeBoxH = 32;
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(toggleX, timeBoxY, toggleW, timeBoxH);
+      ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+      ctx.strokeRect(toggleX, timeBoxY, toggleW, timeBoxH);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '12px ui-sans-serif,system-ui';
+      ctx.textAlign = 'left';
+      ctx.fillText(`Time: ${s.elapsed.toFixed(1)} s`, toggleX + 8, timeBoxY + 20);
+      const timeButtons = [
+        { label: '-60s', delta: -60 },
+        { label: '-10s', delta: -10 },
+        { label: '+10s', delta: 10 },
+        { label: '+60s', delta: 60 }
       ];
-      const rowSpacing = 26;
-      const usableHeight = ph - (baseY - py) - 12;
-      const columns = 2;
-      const rowsPerColumn = Math.max(1, Math.floor(usableHeight / rowSpacing));
-      const colWidth = (pw - 32) / columns;
-      let col = 0;
-      let row = 0;
+      const btnWidth = 48;
+      const btnHeight = 24;
+      const btnSpacing = 6;
+      let btnX = toggleX + toggleW - (btnWidth + btnSpacing) * timeButtons.length + btnSpacing;
+      const btnY = timeBoxY + (timeBoxH - btnHeight) / 2;
+      for (const btn of timeButtons) {
+        ctx.fillStyle = 'rgba(59,130,246,0.35)';
+        ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
+        ctx.strokeStyle = 'rgba(59,130,246,0.55)';
+        ctx.strokeRect(btnX, btnY, btnWidth, btnHeight);
+        ctx.fillStyle = '#f8fafc';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(btn.label, btnX + btnWidth / 2, btnY + btnHeight / 2 + 1);
+        RS.UI.addHotspot(btnX, btnY, btnWidth, btnHeight, ((delta) => () => { RS.Systems.devAdjustTime(delta); })(btn.delta));
+        btnX += btnWidth + btnSpacing;
+      }
+      const baseY = timeBoxY + timeBoxH + 28;
+      const columnData = [
+        {
+          heading: 'Weapon Ranks',
+          entries: [
+            { id: 'sword', label: 'Sword', max: 5 },
+            { id: 'boomerang', label: 'Boomerang', max: 5, min: 1 },
+            { id: 'bow', label: 'Bow', max: 5 },
+            { id: 'storm', label: 'Skybrand', max: 5 },
+            { id: 'bomb', label: 'Bombbloom', max: 5 },
+            { id: 'spinner', label: 'Spinner', max: 5 }
+          ]
+        },
+        {
+          heading: 'Relics & Globals',
+          entries: [
+            { id: 'magnet', label: 'Magnet', max: 5 },
+            { id: 'tempo', label: 'Tempo', max: 10 },
+            { id: 'bead', label: 'Bead', max: 8 },
+            { id: 'leech', label: 'Sanguine', max: 5 },
+            { id: 'wisdom', label: 'Lightstone', max: 10 },
+            { id: 'xp', label: 'Ledger', max: 10 },
+            { id: 'hook', label: 'Skyhook', max: 5 },
+            { id: 'wake', label: 'Wake', max: 5 }
+          ]
+        }
+      ];
+      const rowSpacing = 30;
+      const columns = columnData.length;
+      const colWidth = (pw - 40) / columns;
       const drawRow = (entry, rowX, rowY, sectionW) => {
         const relic = RS.Registry.Relics[entry.id];
         const max = relic?.max ?? entry.max ?? 10;
@@ -3987,21 +4033,18 @@ const RS = {
         RS.UI.addHotspot(minusX, buttonY, 20, 18, () => { RS.Systems.devAdjustLevel(entry.id, -1); });
         RS.UI.addHotspot(plusX, buttonY, 20, 18, () => { RS.Systems.devAdjustLevel(entry.id, 1); });
       };
-      layout.forEach((item) => {
-        if (row >= rowsPerColumn) { col++; row = 0; }
-        if (col >= columns) return;
-        const rowX = px + 12 + col * colWidth;
-        const rowY = baseY + row * rowSpacing;
-        const sectionW = colWidth - 8;
-        if (item.type === 'heading') {
-          ctx.textAlign = 'left';
-          ctx.font = '13px ui-sans-serif,system-ui';
-          ctx.fillStyle = '#cbd5f5';
-          ctx.fillText(item.label, rowX, rowY);
-        } else {
-          drawRow(item, rowX, rowY, sectionW);
-        }
-        row++;
+      columnData.forEach((column, colIdx) => {
+        if (colIdx >= columns) return;
+        const colX = px + 12 + colIdx * colWidth;
+        const headingY = baseY - 8;
+        ctx.textAlign = 'left';
+        ctx.font = '13px ui-sans-serif,system-ui';
+        ctx.fillStyle = '#cbd5f5';
+        ctx.fillText(column.heading, colX, headingY);
+        column.entries.forEach((entry, idx) => {
+          const rowY = baseY + idx * rowSpacing;
+          drawRow(entry, colX, rowY, colWidth - 12);
+        });
       });
       ctx.restore();
     },
