@@ -19,6 +19,7 @@
 - [x] Manual weapon mode support confirmed live in current build.
 - [ ] Add click feedback + range cues for manual weapons (reticle, “no target” hint) to help players learn the mode.
 - [ ] Implement compact auto bar for full-auto runs; enforce active-weapon cap once weapon roster expands.
+- [ ] Surface relic/global icons beneath the weapon bar so pickups are visible during runs.
 
 - [x] Boomerang: add volley count per rank and ignore heart pickups at full health (bug regression check).  ✅ per-slot launchers keep volleys live.
   - [x] Tweak cadence: track per-boomerang timers so a full volley stays active; consider XP-seek behavior when no enemies remain.  ✅ boomerangs fan to XP when no targets.
@@ -85,3 +86,4 @@
 - [ ] Consider accessibility options (colorblind outlines, screen shake toggle) while revamping art and VFX.
 - [ ] Evaluate WebGL-backed renderer (Pixi.js/Three.js) if Canvas performance becomes a bottleneck after art/VFX updates.
 - [x] Prototype optional manual weapon controls so players can click-to-attack or toggle individual weapons between auto/manual fire.
+- [ ] Add a death-screen polish pass (death animation + pause/stop the music while the death overlay is up).
