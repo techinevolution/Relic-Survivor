@@ -350,7 +350,8 @@ const RS = {
         return;
       }
       this.deathActive = true;
-      this.startTrack(track, { loop: false, mode: 'death', fadeIn: 0.4, fadeOut: 0.5 });
+      const fade = Math.max(0.35, Math.min(1.1, this.crossfade));
+      this.startTrack(track, { loop: false, mode: 'death', fadeIn: fade, fadeOut: fade });
     },
     fadeOutAll() {
       this.activeTracks.forEach(track => {
