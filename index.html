@@ -185,7 +185,10 @@ const RS = {
     sfxSources: {
       bomb_drop: 'Audio/SFX/Bomb/bomb_drop.mp3',
       bomb_exploding: 'Audio/SFX/Bomb/bomb_exploding.mp3',
-      bomb_throw: 'Audio/SFX/Bomb/bomb_throw.mp3'
+      bomb_throw: 'Audio/SFX/Bomb/bomb_throw.mp3',
+      boomerang_flight: 'Audio/SFX/Boomerang/boomerang_flight.mp3',
+      boomerang_flight_reverse: 'Audio/SFX/Boomerang/boomerang_flight_reverse.mp3',
+      boomerang_thump: 'Audio/SFX/Boomerang/boomerang_thump.mp3'
     },
     tracks: {},
     sfx: {},
@@ -239,12 +242,12 @@ const RS = {
       this.sfx[id] = bank;
       return bank;
     },
-    playSfx(id) {
-      if (!id) return;
+    playSfx(id, opts = {}) {
+      if (!id) return null;
       this.ensureTracks();
-      if (!this.canPlay) return;
+      if (!this.canPlay) return null;
       const bank = this.ensureSfx(id);
-      if (!bank) return;
+      if (!bank) return null;
       let audio = bank.pool.find(a => a.paused);
       if (!audio) {
         audio = bank.pool[0].cloneNode();
@@ -256,8 +259,10 @@ const RS = {
         this.attachToRoot(audio);
         bank.pool.push(audio);
       }
+      const volume = typeof opts.volume === 'number' ? opts.volume : this.sfxVolume;
+      audio.loop = !!opts.loop;
       audio.currentTime = 0;
-      audio.volume = this.sfxVolume;
+      audio.volume = volume;
       try {
         const playPromise = audio.play();
         if (playPromise && typeof playPromise.catch === 'function') {
@@ -266,6 +271,30 @@ const RS = {
       } catch (err) {
         console.warn('SFX play blocked', err);
       }
+      return audio;
+    },
+    stopSfx(audio) {
+      if (!audio) return;
+      try {
+        audio.pause();
+      } catch (err) {}
+      audio.loop = false;
+      try {
+        audio.currentTime = 0;
+      } catch (err) {}
+    },
+    pauseSfxLoop(audio) {
+      if (!audio || audio.__rsLoopPaused) return;
+      audio.__rsLoopPaused = true;
+      try { audio.pause(); } catch (err) {}
+    },
+    resumeSfxLoop(audio) {
+      if (!audio || !audio.__rsLoopPaused) return;
+      audio.__rsLoopPaused = false;
+      try {
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+      } catch (err) {}
     },
     ensureTracks() {
       if (this._tracksReady) return;
@@ -1920,7 +1949,7 @@ const RS = {
       s.spinner.shots = [];
       s.spinner.maxBlades = 0;
       s.trails.length = 0;
-      s.boomerangs.length = 0;
+      this.haltBoomerangs(s, { clear: true });
       s.projs.length = 0;
       s.bombs.length = 0;
       s.placedBombs.length = 0;
@@ -2146,7 +2175,7 @@ const RS = {
       }
       const dirX = Math.cos(angle);
       const dirY = Math.sin(angle);
-      s.boomerangs.push({
+      const boomerang = {
         x: s.player.x,
         y: s.player.y,
         vx: dirX,
@@ -2163,9 +2192,44 @@ const RS = {
         spinAngle: 0,
         spinSpeed: (Math.random() < 0.5 ? -1 : 1) * 18,
         manual: !!opts.manual,
-        born: s.elapsed
-      });
+        born: s.elapsed,
+        hitEnemies: 0,
+        sfxFlight: null,
+        sfxReverse: null
+      };
+      const boomVol = RS.Audio.sfxVolume * 0.9;
+      boomerang.sfxFlight = RS.Audio.playSfx('boomerang_flight', { loop: true, volume: boomVol });
+      s.boomerangs.push(boomerang);
       s.stats.boomerangsThrown++;
+    },
+    stopBoomerangAudio(b) {
+      if (!b) return;
+      if (b.sfxFlight) {
+        RS.Audio.stopSfx(b.sfxFlight);
+        b.sfxFlight = null;
+      }
+      if (b.sfxReverse) {
+        RS.Audio.stopSfx(b.sfxReverse);
+        b.sfxReverse = null;
+      }
+    },
+    haltBoomerangs(s, opts = {}) {
+      if (!s || !Array.isArray(s.boomerangs)) return;
+      s.boomerangs.forEach(boom => this.stopBoomerangAudio(boom));
+      if (opts.clear) s.boomerangs.length = 0;
+    },
+    syncBoomerangAudio(s) {
+      if (!s || !Array.isArray(s.boomerangs)) return;
+      const shouldPause = !!(s.paused || s.currentChoices);
+      s.boomerangs.forEach(b => {
+        if (shouldPause) {
+          RS.Audio.pauseSfxLoop(b.sfxFlight);
+          RS.Audio.pauseSfxLoop(b.sfxReverse);
+        } else {
+          RS.Audio.resumeSfxLoop(b.sfxFlight);
+          RS.Audio.resumeSfxLoop(b.sfxReverse);
+        }
+      });
     },
     pickBoomerangTargets(s, count) {
       const results = [];
@@ -2259,6 +2323,16 @@ const RS = {
           const e = s.enemies[j];
           if (RS.Util.dist2(b.x, b.y, e.x, e.y) < (12 + e.r) ** 2) {
             RS.Systems.applyDamage(e, RS.Systems.effDamage(data.damage, s), s, 'boomerang');
+            const boomVol = RS.Audio.sfxVolume * 0.9;
+            RS.Audio.playSfx('boomerang_thump', { volume: boomVol });
+            if (!b.hitEnemies) {
+              if (b.sfxFlight) {
+                RS.Audio.stopSfx(b.sfxFlight);
+                b.sfxFlight = null;
+              }
+              b.sfxReverse = RS.Audio.playSfx('boomerang_flight_reverse', { loop: true, volume: boomVol });
+            }
+            b.hitEnemies = (b.hitEnemies || 0) + 1;
             startReturn(b);
             break;
           }
@@ -2295,6 +2369,7 @@ const RS = {
           if (maxAmmo > 0) {
             data.ammo = Math.min(maxAmmo, (data.ammo || 0) + 1);
           }
+          this.stopBoomerangAudio(b);
           s.boomerangs.splice(i, 1);
         }
       }
@@ -2845,6 +2920,7 @@ const RS = {
       s.currentChoices = null;
       RS.UI.showLevelModal(false);
       RS.UI.uiButtons = [];
+      this.haltBoomerangs(s);
     },
     restart(s) {
       s.devPanelOpen = false;
@@ -2860,7 +2936,7 @@ const RS = {
         facing: 0
       });
       s.enemies.length = s.projs.length = s.orbs.length = s.heals.length = s.bombs.length = s.placedBombs.length = s.thrownBombs.length = s.bolts.length = s.trails.length = s.vacuumDrops.length = 0;
-      s.boomerangs.length = 0;
+      this.haltBoomerangs(s, { clear: true });
       s.spinner.rings.length = 0;
       s.spinner.dmg = RS.Config.WEAPONS.spinner.baseDamage;
       s.sword.swings.length = 0;
@@ -3074,7 +3150,15 @@ const RS = {
     }
     if (e.key === 'r' || e.key === 'R') { RS.Systems.restart(RS.State); }
     if (e.key === 'm' || e.key === 'M') {
-      if (RS.State.mode === 'playing') { RS.State.mode = 'menu'; RS.State.paused = false; RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; RS.State.gameOver = false; RS.UI.uiButtons = []; }
+      if (RS.State.mode === 'playing') {
+        RS.Systems.haltBoomerangs(RS.State, { clear: true });
+        RS.State.mode = 'menu';
+        RS.State.paused = false;
+        RS.State.devPanelOpen = false;
+        RS.State.pauseOptionsOpen = false;
+        RS.State.gameOver = false;
+        RS.UI.uiButtons = [];
+      }
     }
     if (RS.State.mode === 'attract') { e.preventDefault(); RS.State.mode = 'menu'; }
   }, { passive: false });
@@ -3975,7 +4059,14 @@ const RS = {
       const buttons = [
         { label: 'Resume', action: () => { RS.State.paused = false; RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; } },
         { label: 'Restart', action: () => { RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; RS.Systems.restart(RS.State); } },
-        { label: 'Main Menu', action: () => { RS.State.mode = 'menu'; RS.State.paused = false; RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; RS.UI.uiButtons = []; } },
+        { label: 'Main Menu', action: () => {
+            RS.Systems.haltBoomerangs(RS.State, { clear: true });
+            RS.State.mode = 'menu';
+            RS.State.paused = false;
+            RS.State.devPanelOpen = false;
+            RS.State.pauseOptionsOpen = false;
+            RS.UI.uiButtons = [];
+          } },
         { label: 'Options', action: () => { RS.State.pauseOptionsOpen = !RS.State.pauseOptionsOpen; if (RS.State.pauseOptionsOpen) RS.State.devPanelOpen = false; } }
       ];
       const totalW = btnW * buttons.length + gap * (buttons.length - 1);
@@ -4331,6 +4422,7 @@ const RS = {
       ctx.textAlign = 'start';
       RS.UI.addBtn(W / 2 - 130, y - 92, 120, 36, 'Restart', () => { RS.Systems.restart(RS.State); });
       RS.UI.addBtn(W / 2 + 10, y - 92, 120, 36, 'Main Menu', () => {
+        RS.Systems.haltBoomerangs(RS.State, { clear: true });
         RS.State.mode = 'menu';
         RS.State.gameOver = false;
         RS.State.paused = false;
@@ -4732,6 +4824,7 @@ const RS = {
     last = now;
     if (dt > 0.05) dt = 0.05;
     const s = RS.State;
+    RS.Systems.syncBoomerangAudio(s);
     if (s.mode === 'playing' && !s.paused && !s.gameOver) {
       s.player.iFrames = Math.max(0, s.player.iFrames - dt);
       RS.Systems.input(dt, s);
