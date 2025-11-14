@@ -188,7 +188,9 @@ const RS = {
       bomb_throw: 'Audio/SFX/Bomb/bomb_throw.mp3',
       boomerang_flight: 'Audio/SFX/Boomerang/boomerang_flight.mp3',
       boomerang_flight_reverse: 'Audio/SFX/Boomerang/boomerang_flight_reverse.mp3',
-      boomerang_thump: 'Audio/SFX/Boomerang/boomerang_thump.mp3'
+      boomerang_thump: 'Audio/SFX/Boomerang/boomerang_thump.mp3',
+      bow_shot: 'Audio/SFX/Bow/bow_shot.mp3',
+      arrow_thump: 'Audio/SFX/Bow/arrow_thump.mp3'
     },
     tracks: {},
     sfx: {},
@@ -2512,6 +2514,7 @@ const RS = {
       const fireVolley = (angle) => {
         const volleys = s.bow.arrows;
         const spread = RS.Config.WEAPONS.bow.spread ?? 0.08;
+        const shotVol = RS.Audio.sfxVolume;
         for (let k = 0; k < volleys; k++) {
           const jitter = (k - (volleys - 1) / 2) * spread;
           const ang = angle + jitter;
@@ -2528,6 +2531,7 @@ const RS = {
             r: 4
           });
           s.stats.arrowsFired++;
+          RS.Audio.playSfx('bow_shot', { volume: shotVol });
         }
         s.bow.timer = s.bow.cooldown;
       };
@@ -2560,6 +2564,7 @@ const RS = {
           if (pr.hitSet.has(e)) continue;
           if (RS.Util.dist2(pr.x, pr.y, e.x, e.y) < (pr.r + e.r) ** 2) {
             RS.Systems.applyDamage(e, RS.Systems.effDamage(pr.dmg, s), s, 'bow');
+            RS.Audio.playSfx('arrow_thump', { volume: RS.Audio.sfxVolume });
             pr.hitSet.add(e);
             if (pr.pierce > 0) pr.pierce--;
             else { pr.life = 0; break; }
