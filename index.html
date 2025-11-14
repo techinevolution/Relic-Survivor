@@ -752,6 +752,7 @@ const RS = {
     gameOver: false,
     elapsed: 0,
     gameplayMode: 'arcade',
+    pauseOverlayDuringChoices: false,
     codexFilter: 'monsters',
     codexSelection: 0,
     codexScroll: { monsters: 0, weapons: 0, relics: 0 },
@@ -2514,7 +2515,8 @@ const RS = {
       const fireVolley = (angle) => {
         const volleys = s.bow.arrows;
         const spread = RS.Config.WEAPONS.bow.spread ?? 0.08;
-        const shotVol = RS.Audio.sfxVolume;
+        const bowRank = Math.max(1, s.levels?.bow || 1);
+        const shotVol = RS.Audio.sfxVolume * Math.pow(0.8, Math.max(0, bowRank - 1));
         for (let k = 0; k < volleys; k++) {
           const jitter = (k - (volleys - 1) / 2) * spread;
           const ang = angle + jitter;
@@ -2925,6 +2927,7 @@ const RS = {
       s.currentChoices = null;
       RS.UI.showLevelModal(false);
       RS.UI.uiButtons = [];
+      s.pauseOverlayDuringChoices = false;
       this.haltBoomerangs(s);
     },
     restart(s) {
@@ -2971,6 +2974,7 @@ const RS = {
       const defaultMode = controlPrefs[s.gameplayMode] || (s.gameplayMode === 'adventure' ? 'manual' : 'auto');
       this.setControlMode(s, defaultMode, { skipPreference: true });
       RS.State.mode = 'playing';
+      s.pauseOverlayDuringChoices = false;
       if (s.gameplayMode === 'adventure') {
         s.modeLabel = 'Adventure Mode (WIP)';
         s.adventureStage = 'grasslands-intro';
@@ -3071,12 +3075,14 @@ const RS = {
       }
       RS.UI.setChoices(picked);
       RS.State.paused = true;
+      RS.State.pauseOverlayDuringChoices = false;
       RS.UI.showLevelModal(true);
     },
     takeUpgrade(u) {
       RS.State.levels[u.id] = (RS.State.levels[u.id] || 0) + 1;
       u.onPick(RS.State);
       RS.State.currentChoices = null;
+      RS.State.pauseOverlayDuringChoices = false;
       RS.State.paused = false;
       RS.State.player.iFrames = Math.max(RS.State.player.iFrames, RS.Config.BALANCE.LEVELUP_IFRAMES);
       RS.UI.showLevelModal(false);
@@ -3119,10 +3125,15 @@ const RS = {
     RS.State.keys[e.key.toLowerCase()] = true;
     if (e.key === 'Escape') {
       if (s.mode === 'playing' && !s.gameOver) {
-        s.paused = !s.paused;
-        if (!s.paused) {
-          s.devPanelOpen = false;
-          s.pauseOptionsOpen = false;
+        if (s.currentChoices) {
+          s.paused = true;
+          s.pauseOverlayDuringChoices = !s.pauseOverlayDuringChoices;
+        } else {
+          s.paused = !s.paused;
+          if (!s.paused) {
+            s.devPanelOpen = false;
+            s.pauseOptionsOpen = false;
+          }
         }
         RS.UI.uiButtons = [];
       } else if ([ 'how', 'options', 'credits', 'codex', 'playSelect' ].includes(s.mode)) {
@@ -3145,10 +3156,15 @@ const RS = {
     }
     if (e.key === 'p' || e.key === 'P') {
       if (s.mode === 'playing' && !s.gameOver) {
-        s.paused = !s.paused;
-        if (!s.paused) {
-          s.devPanelOpen = false;
-          s.pauseOptionsOpen = false;
+        if (s.currentChoices) {
+          s.paused = true;
+          s.pauseOverlayDuringChoices = !s.pauseOverlayDuringChoices;
+        } else {
+          s.paused = !s.paused;
+          if (!s.paused) {
+            s.devPanelOpen = false;
+            s.pauseOptionsOpen = false;
+          }
         }
         RS.UI.uiButtons = [];
       }
@@ -3162,6 +3178,7 @@ const RS = {
         RS.State.devPanelOpen = false;
         RS.State.pauseOptionsOpen = false;
         RS.State.gameOver = false;
+        RS.State.pauseOverlayDuringChoices = false;
         RS.UI.uiButtons = [];
       }
     }
@@ -4062,7 +4079,15 @@ const RS = {
       const y = H / 2 - h / 2;
       const btnW = 120, btnH = 36, gap = 16;
       const buttons = [
-        { label: 'Resume', action: () => { RS.State.paused = false; RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; } },
+        { label: 'Resume', action: () => {
+            if (RS.State.currentChoices) {
+              RS.State.pauseOverlayDuringChoices = false;
+            } else {
+              RS.State.paused = false;
+              RS.State.devPanelOpen = false;
+              RS.State.pauseOptionsOpen = false;
+            }
+          } },
         { label: 'Restart', action: () => { RS.State.devPanelOpen = false; RS.State.pauseOptionsOpen = false; RS.Systems.restart(RS.State); } },
         { label: 'Main Menu', action: () => {
             RS.Systems.haltBoomerangs(RS.State, { clear: true });
@@ -4070,6 +4095,7 @@ const RS = {
             RS.State.paused = false;
             RS.State.devPanelOpen = false;
             RS.State.pauseOptionsOpen = false;
+            RS.State.pauseOverlayDuringChoices = false;
             RS.UI.uiButtons = [];
           } },
         { label: 'Options', action: () => { RS.State.pauseOptionsOpen = !RS.State.pauseOptionsOpen; if (RS.State.pauseOptionsOpen) RS.State.devPanelOpen = false; } }
@@ -4434,6 +4460,7 @@ const RS = {
         RS.State.devPanelOpen = false;
         RS.State.pauseOptionsOpen = false;
         RS.State.currentChoices = null;
+        RS.State.pauseOverlayDuringChoices = false;
         RS.UI.showLevelModal(false);
         RS.UI.uiButtons = [];
       });
@@ -4859,7 +4886,7 @@ const RS = {
     RS.Render.world();
     RS.Render.hud();
     RS.Render.modeBanner();
-    if (s.paused && !s.gameOver && !s.currentChoices) RS.Render.pause();
+    if (s.paused && !s.gameOver && (!s.currentChoices || s.pauseOverlayDuringChoices)) RS.Render.pause();
     if (s.gameOver) RS.Render.death();
   }
 
