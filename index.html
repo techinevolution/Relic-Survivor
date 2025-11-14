@@ -181,7 +181,14 @@ const RS = {
     ],
     menuTrackSrc: 'Audio/Music/background-music-title-menu.mp3',
     deathTrackSrc: 'Audio/SFX/Death/death_tune.mp3',
+    sfxVolume: 0.15,
+    sfxSources: {
+      bomb_drop: 'Audio/SFX/Bomb/bomb_drop.mp3',
+      bomb_exploding: 'Audio/SFX/Bomb/bomb_exploding.mp3',
+      bomb_throw: 'Audio/SFX/Bomb/bomb_throw.mp3'
+    },
     tracks: {},
+    sfx: {},
     activeTracks: [],
     queue: [],
     current: null,
@@ -196,20 +203,72 @@ const RS = {
     deathActive: false,
     deathPlayed: false,
     wasGameOver: false,
+    ensureRoot() {
+      if (this.root) return this.root;
+      let host = document.getElementById('rs-audio-root');
+      if (!host) {
+        host = document.createElement('div');
+        host.id = 'rs-audio-root';
+        host.style.display = 'none';
+        (document.body || document.documentElement).appendChild(host);
+      }
+      this.root = host;
+      return host;
+    },
+    attachToRoot(node) {
+      if (!node) return;
+      const attach = () => {
+        const host = this.ensureRoot();
+        if (host && !node.parentElement) host.appendChild(node);
+      };
+      if (document.body) attach();
+      else document.addEventListener('DOMContentLoaded', attach, { once: true });
+    },
+    ensureSfx(id) {
+      if (!id || this.sfx[id]) return this.sfx[id];
+      const src = this.sfxSources[id];
+      if (!src) return null;
+      const audio = new Audio(src);
+      audio.preload = 'auto';
+      audio.loop = false;
+      audio.volume = this.sfxVolume;
+      audio.muted = false;
+      audio.playsInline = true;
+      this.attachToRoot(audio);
+      const bank = { id, src, pool: [audio] };
+      this.sfx[id] = bank;
+      return bank;
+    },
+    playSfx(id) {
+      if (!id) return;
+      this.ensureTracks();
+      if (!this.canPlay) return;
+      const bank = this.ensureSfx(id);
+      if (!bank) return;
+      let audio = bank.pool.find(a => a.paused);
+      if (!audio) {
+        audio = bank.pool[0].cloneNode();
+        audio.volume = this.sfxVolume;
+        audio.preload = 'auto';
+        audio.loop = false;
+        audio.muted = false;
+        audio.playsInline = true;
+        this.attachToRoot(audio);
+        bank.pool.push(audio);
+      }
+      audio.currentTime = 0;
+      audio.volume = this.sfxVolume;
+      try {
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {});
+        }
+      } catch (err) {
+        console.warn('SFX play blocked', err);
+      }
+    },
     ensureTracks() {
       if (this._tracksReady) return;
-      const ensureRoot = () => {
-        if (this.root) return this.root;
-        let host = document.getElementById('rs-audio-root');
-        if (!host) {
-          host = document.createElement('div');
-          host.id = 'rs-audio-root';
-          host.style.display = 'none';
-          (document.body || document.documentElement).appendChild(host);
-        }
-        this.root = host;
-        return host;
-      };
       const makeTrack = (id, src, loop = false) => {
         const audio = new Audio(src);
         audio.preload = 'auto';
@@ -217,12 +276,7 @@ const RS = {
         audio.volume = 0;
         audio.muted = true;
         audio.playsInline = true;
-        const host = document.body ? ensureRoot() : null;
-        if (host) host.appendChild(audio);
-        else document.addEventListener('DOMContentLoaded', () => {
-          const root = ensureRoot();
-          if (!audio.parentElement) root.appendChild(audio);
-        }, { once: true });
+        this.attachToRoot(audio);
         const track = {
           id,
           src,
@@ -245,6 +299,7 @@ const RS = {
       makeTrack('menu', this.menuTrackSrc, true);
       this.playlist.forEach(entry => makeTrack(entry.id, entry.src, false));
       if (this.deathTrackSrc) makeTrack('death', this.deathTrackSrc, false);
+      Object.keys(this.sfxSources).forEach(id => this.ensureSfx(id));
       this._tracksReady = true;
     },
     resume() {
@@ -2510,6 +2565,7 @@ const RS = {
         const timerStart = bounce > 0 ? -bounce : 0;
         s.placedBombs.push({ x, y, timer: timerStart, fuse: data.fuse, bounce });
         s.stats.bombsPlaced++;
+        RS.Audio.playSfx('bomb_drop');
         if (opts.manual) {
           data.trailLeft = 0;
         } else {
@@ -2545,6 +2601,7 @@ const RS = {
         });
         data.trailLeft = 0;
         data.trailTimer = 0;
+        RS.Audio.playSfx('bomb_throw');
       };
       if (isManual) {
         const cmd = this.takeManualCommand(s, 'bomb');
@@ -2591,6 +2648,7 @@ const RS = {
         if (b.timer >= b.fuse) {
           s.bombs.push({ t: 0, x: b.x, y: b.y, r: 0, target: s.bomb.explosionRadius, life: 0.32, dmg: s.bomb.dmg, hit: new WeakSet() });
           s.placedBombs.splice(i, 1);
+          RS.Audio.playSfx('bomb_exploding');
         }
       }
       for (let i = s.bombs.length - 1; i >= 0; i--) {
