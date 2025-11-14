@@ -208,6 +208,9 @@ const RS = {
     deathActive: false,
     deathPlayed: false,
     wasGameOver: false,
+    muffleFactor: 1,
+    muffleLevel: 0.45,
+    muffleResponse: 0.25,
     ensureRoot() {
       if (this.root) return this.root;
       let host = document.getElementById('rs-audio-root');
@@ -478,7 +481,7 @@ const RS = {
     getDesiredVolume() {
       const st = typeof RS !== 'undefined' ? RS.State : null;
       if (st && st.settings && st.settings.musicMuted) return 0;
-      return this.volume;
+      return this.volume * (this.muffleFactor ?? 1);
     },
     refreshVolumes() {
       this.ensureTracks();
@@ -570,6 +573,12 @@ const RS = {
     },
     update(state, dt) {
       this.ensureTracks();
+      const shouldMuffle = !!(state && !state.gameOver && (state.paused || state.currentChoices));
+      const targetMuffle = shouldMuffle ? this.muffleLevel : 1;
+      const response = Math.max(0.01, this.muffleResponse || 0.2);
+      const lerp = dt > 0 ? Math.min(1, dt / response) : 1;
+      if (!Number.isFinite(this.muffleFactor)) this.muffleFactor = 1;
+      this.muffleFactor += (targetMuffle - this.muffleFactor) * lerp;
       const prevGameOver = this.wasGameOver;
       const gameOver = !!(state && state.gameOver);
       if (gameOver && !prevGameOver) {
@@ -753,6 +762,7 @@ const RS = {
     elapsed: 0,
     gameplayMode: 'arcade',
     pauseOverlayDuringChoices: false,
+    levelModalOpen: false,
     codexFilter: 'monsters',
     codexSelection: 0,
     codexScroll: { monsters: 0, weapons: 0, relics: 0 },
@@ -2927,7 +2937,7 @@ const RS = {
       s.currentChoices = null;
       RS.UI.showLevelModal(false);
       RS.UI.uiButtons = [];
-      s.pauseOverlayDuringChoices = false;
+      RS.UI.setPauseOverlayDuringChoices(false);
       this.haltBoomerangs(s);
     },
     restart(s) {
@@ -2974,7 +2984,7 @@ const RS = {
       const defaultMode = controlPrefs[s.gameplayMode] || (s.gameplayMode === 'adventure' ? 'manual' : 'auto');
       this.setControlMode(s, defaultMode, { skipPreference: true });
       RS.State.mode = 'playing';
-      s.pauseOverlayDuringChoices = false;
+      RS.UI.setPauseOverlayDuringChoices(false);
       if (s.gameplayMode === 'adventure') {
         s.modeLabel = 'Adventure Mode (WIP)';
         s.adventureStage = 'grasslands-intro';
@@ -3040,7 +3050,18 @@ const RS = {
       }
       return false;
     },
-    showLevelModal(show) { levelModal.classList.toggle('show', !!show && !RS.State.gameOver); },
+    showLevelModal(show) {
+      RS.State.levelModalOpen = !!show && !RS.State.gameOver;
+      RS.UI.refreshLevelModal();
+    },
+    refreshLevelModal() {
+      const shouldShow = !!(RS.State.levelModalOpen && RS.State.currentChoices && !RS.State.gameOver && !RS.State.pauseOverlayDuringChoices);
+      levelModal.classList.toggle('show', shouldShow);
+    },
+    setPauseOverlayDuringChoices(flag) {
+      RS.State.pauseOverlayDuringChoices = !!flag;
+      RS.UI.refreshLevelModal();
+    },
     setChoices(items) { RS.State.currentChoices = items; RS.UI.renderChoices(); },
     renderChoices() {
       levelUpLabel.textContent = (RS.State.levelUpFrom != null && RS.State.levelUpTo != null)
@@ -3075,14 +3096,14 @@ const RS = {
       }
       RS.UI.setChoices(picked);
       RS.State.paused = true;
-      RS.State.pauseOverlayDuringChoices = false;
+      RS.UI.setPauseOverlayDuringChoices(false);
       RS.UI.showLevelModal(true);
     },
     takeUpgrade(u) {
       RS.State.levels[u.id] = (RS.State.levels[u.id] || 0) + 1;
       u.onPick(RS.State);
       RS.State.currentChoices = null;
-      RS.State.pauseOverlayDuringChoices = false;
+      RS.UI.setPauseOverlayDuringChoices(false);
       RS.State.paused = false;
       RS.State.player.iFrames = Math.max(RS.State.player.iFrames, RS.Config.BALANCE.LEVELUP_IFRAMES);
       RS.UI.showLevelModal(false);
@@ -3127,7 +3148,7 @@ const RS = {
       if (s.mode === 'playing' && !s.gameOver) {
         if (s.currentChoices) {
           s.paused = true;
-          s.pauseOverlayDuringChoices = !s.pauseOverlayDuringChoices;
+          RS.UI.setPauseOverlayDuringChoices(!s.pauseOverlayDuringChoices);
         } else {
           s.paused = !s.paused;
           if (!s.paused) {
@@ -3158,7 +3179,7 @@ const RS = {
       if (s.mode === 'playing' && !s.gameOver) {
         if (s.currentChoices) {
           s.paused = true;
-          s.pauseOverlayDuringChoices = !s.pauseOverlayDuringChoices;
+          RS.UI.setPauseOverlayDuringChoices(!s.pauseOverlayDuringChoices);
         } else {
           s.paused = !s.paused;
           if (!s.paused) {
@@ -3178,7 +3199,7 @@ const RS = {
         RS.State.devPanelOpen = false;
         RS.State.pauseOptionsOpen = false;
         RS.State.gameOver = false;
-        RS.State.pauseOverlayDuringChoices = false;
+        RS.UI.setPauseOverlayDuringChoices(false);
         RS.UI.uiButtons = [];
       }
     }
@@ -4081,7 +4102,7 @@ const RS = {
       const buttons = [
         { label: 'Resume', action: () => {
             if (RS.State.currentChoices) {
-              RS.State.pauseOverlayDuringChoices = false;
+              RS.UI.setPauseOverlayDuringChoices(false);
             } else {
               RS.State.paused = false;
               RS.State.devPanelOpen = false;
@@ -4095,7 +4116,7 @@ const RS = {
             RS.State.paused = false;
             RS.State.devPanelOpen = false;
             RS.State.pauseOptionsOpen = false;
-            RS.State.pauseOverlayDuringChoices = false;
+            RS.UI.setPauseOverlayDuringChoices(false);
             RS.UI.uiButtons = [];
           } },
         { label: 'Options', action: () => { RS.State.pauseOptionsOpen = !RS.State.pauseOptionsOpen; if (RS.State.pauseOptionsOpen) RS.State.devPanelOpen = false; } }
@@ -4460,7 +4481,7 @@ const RS = {
         RS.State.devPanelOpen = false;
         RS.State.pauseOptionsOpen = false;
         RS.State.currentChoices = null;
-        RS.State.pauseOverlayDuringChoices = false;
+        RS.UI.setPauseOverlayDuringChoices(false);
         RS.UI.showLevelModal(false);
         RS.UI.uiButtons = [];
       });
