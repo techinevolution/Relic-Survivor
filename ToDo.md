@@ -35,7 +35,8 @@
 - [x] Spinner/Wake: cap blades at five; scale wake length with rank.  ✅ single ring tops at five blades; wake trail length grows with rank.
 - [x] Tempo Charm: ensure each weapon’s cadence responds to the relic’s attack-speed bonus.  ✅ all cadence timers now respect atkSpeed multiplier.
 - [x] Bombbloom manual mode: convert to thrown projectile that travels toward click point before arming/exploding. ✅ manual throws arc, bounce, then arm.
-- [ ] Spinner manual mode: prototype press-and-hold expansion with retract-on-release behavior.
+- [x] Spinner manual mode: manual shots now fire individual blades toward the cursor and return along the path (ammo mirrors orbiting blades).
+- [ ] Spinner manual mode polish: launch blades from their current orbit slot, travel past the cursor to boomerang max range, glide back into the default formation using tempo speed, and show active shots so ammo/readiness stays readable. Ensure scroll+number hotkeys can pick the spinner instantly.
 - [x] Magnet Rune vacuum drop: make Skywell orbs spawn from rank 1 with low chance (0.01%) and scale frequency to 0.03% by rank 5; balance against heart spawn rate.  ✅ chance scales per rank (0.01% → 0.03%).
 - [x] Rebuild Boomerang firing to be ammo-based (shots consume ammo and refill on return; auto-fire only when ammo available).  ✅ ammo refills on return now.
 - [x] Fix Bombbloom ammo recharge so the full stock refills after cooldown and respect rank-based capacity.  ✅ full refill after cooldown.

@@ -638,7 +638,7 @@ const RS = {
       facing: 0
     },
     levels: { boomerang: 1 },
-    spinner: { dmg: RS.Config.WEAPONS.spinner.baseDamage, rings: [] },
+    spinner: { dmg: RS.Config.WEAPONS.spinner.baseDamage, rings: [], shots: [], maxBlades: 0 },
     bow: { enabled: false, cooldown: RS.Config.WEAPONS.bow.baseCooldown, timer: 0, arrows: 1, dmg: RS.Config.WEAPONS.bow.baseDamage, speed: 560, life: 1.8, pierce: 0 },
     storm: { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.storm.baseCooldown, dmg: RS.Config.WEAPONS.storm.baseDamage, chains: 2, range: 300 },
     sword: { enabled: false, timer: 0, cooldown: RS.Config.WEAPONS.sword.baseCooldown, dmg: RS.Config.WEAPONS.sword.baseDamage, reach: 120, duration: 0.26, swings: [], angleSeed: 0, lastAngle: 0, arc: RS.Config.WEAPONS.sword.arcs[0] * Math.PI / 180 },
@@ -1562,7 +1562,7 @@ const RS = {
       return !!(e && e.hp > 0 && !(e.type === 'slime' && e.splitting));
     },
     manualEligible(weapon) {
-      return [ 'boomerang', 'sword', 'bow', 'storm', 'bomb' ].includes(weapon);
+      return [ 'boomerang', 'sword', 'bow', 'storm', 'bomb', 'spinner' ].includes(weapon);
     },
     manualReady(s, weapon) {
       switch (weapon) {
@@ -1571,7 +1571,91 @@ const RS = {
         case 'storm': return s.storm.enabled && (s.storm.timer || 0) <= 0.001;
         case 'bomb': return s.bomb.enabled && (s.bomb.ammo || 0) > 0;
         case 'boomerang': return (s.boomerang.ammo || 0) > 0;
+        case 'spinner': return this.spinnerBladeCount(s) > 0;
         default: return false;
+      }
+    },
+    spinnerBladeCount(s) {
+      if (!s || !Array.isArray(s.spinner?.rings)) return 0;
+      return s.spinner.rings.reduce((sum, ring) => sum + Math.max(0, ring.count || 0), 0);
+    },
+    setManualWeaponBySlot(s, slotIdx) {
+      if (!s || !Array.isArray(s.weaponSlots)) return;
+      if (slotIdx < 0 || slotIdx >= s.weaponSlots.length) return;
+      const weapon = s.weaponSlots[slotIdx];
+      if (!weapon) return;
+      if (!this.manualEligible(weapon)) return;
+      if (!this.weaponAvailable(s, weapon)) return;
+      this.setManualWeapon(s, weapon);
+    },
+    fireSpinnerShot(s, target) {
+      if (!target || !s || !Array.isArray(s.spinner?.rings) || !s.spinner.rings.length) return false;
+      const ringIndex = s.spinner.rings.findIndex(r => (r.count || 0) > 0);
+      if (ringIndex === -1) return false;
+      const ring = s.spinner.rings[ringIndex];
+      if (!ring.count || ring.count <= 0) return false;
+      ring.count = Math.max(0, ring.count - 1);
+      const dx = target.x - s.player.x;
+      const dy = target.y - s.player.y;
+      const dist = Math.max(16, Math.hypot(dx, dy) || 1);
+      const speed = RS.Config.WEAPONS.spinner.shotSpeed || 520;
+      const maxRange = s.boomerang?.range || RS.Config.WEAPONS.boomerang.range || 320;
+      const shot = {
+        x: s.player.x,
+        y: s.player.y,
+        dirX: dx / dist,
+        dirY: dy / dist,
+        speed,
+        travelled: 0,
+        outDistance: maxRange,
+        returning: false,
+        ringIndex,
+        radius: 12,
+        hitsOut: new WeakSet(),
+        hitsIn: new WeakSet()
+      };
+      if (!Array.isArray(s.spinner.shots)) s.spinner.shots = [];
+      s.spinner.shots.push(shot);
+      return true;
+    },
+    updateSpinnerShots(dt, s) {
+      if (!Array.isArray(s.spinner?.shots) || !s.spinner.shots.length) return;
+      for (let i = s.spinner.shots.length - 1; i >= 0; i--) {
+        const shot = s.spinner.shots[i];
+        const baseSpeed = shot.speed || 520;
+        if (!shot.returning) {
+          const step = baseSpeed * dt;
+          shot.x += shot.dirX * step;
+          shot.y += shot.dirY * step;
+          shot.travelled = (shot.travelled || 0) + step;
+          if (shot.travelled >= (shot.outDistance || 0)) {
+            shot.returning = true;
+          }
+        } else {
+          const dx = s.player.x - shot.x;
+          const dy = s.player.y - shot.y;
+          const dist = Math.hypot(dx, dy) || 1;
+          shot.dirX = dx / dist;
+          shot.dirY = dy / dist;
+          const step = baseSpeed * dt;
+          shot.x += shot.dirX * step;
+          shot.y += shot.dirY * step;
+          if (dist <= 16) {
+            const ring = s.spinner.rings[shot.ringIndex];
+            if (ring) ring.count = Math.min((ring.count || 0) + 1, s.spinner.maxBlades || 5);
+            s.spinner.shots.splice(i, 1);
+            continue;
+          }
+        }
+        const hitSet = shot.returning ? shot.hitsIn : shot.hitsOut;
+        for (let j = s.enemies.length - 1; j >= 0; j--) {
+          const e = s.enemies[j];
+          if (hitSet.has(e)) continue;
+          if (RS.Util.dist2(shot.x, shot.y, e.x, e.y) < (shot.radius + e.r) ** 2) {
+            RS.Systems.applyDamage(e, RS.Systems.effDamage(s.spinner.dmg, s), s, 'spinnerShot');
+            hitSet.add(e);
+          }
+        }
       }
     },
     updateBoomerangProfile(s) {
@@ -1682,6 +1766,8 @@ const RS = {
       const prevAngle = s.spinner.rings[0]?.angle || 0;
       if (count <= 0) {
         s.spinner.rings.length = 0;
+        s.spinner.shots = [];
+        s.spinner.maxBlades = 0;
         return;
       }
       const radiusBase = 58;
@@ -1693,6 +1779,8 @@ const RS = {
         { count, radius, speed: speedBase + (count - 1) * speedStep, angle: prevAngle }
       ];
       s.spinner.dmg = RS.Config.WEAPONS.spinner.baseDamage;
+      s.spinner.maxBlades = count;
+      s.spinner.shots = [];
     },
     updateWakeProfile(s) {
       const rank = s.levels.wake || 0;
@@ -1723,6 +1811,10 @@ const RS = {
       s.player.hearts = Math.min(carryHearts, s.player.maxHearts);
       s.spinner.rings.length = 0;
       s.spinner.dmg = RS.Config.WEAPONS.spinner.baseDamage;
+      s.spinner.shots = [];
+      s.spinner.maxBlades = 0;
+      s.spinner.shots = [];
+      s.spinner.maxBlades = 0;
       s.trails.length = 0;
       s.boomerangs.length = 0;
       s.projs.length = 0;
@@ -2178,6 +2270,12 @@ const RS = {
       }
     },
     spinner(dt, s) {
+      const manualMode = s.controlMode === 'manual' && s.manualWeapon === 'spinner';
+      if (manualMode) {
+        const cmd = RS.Systems.takeManualCommand(s, 'spinner');
+        if (cmd) RS.Systems.fireSpinnerShot(s, cmd);
+      }
+      RS.Systems.updateSpinnerShots(dt, s);
       const collided = new Map();
       let spawnTrails = false;
       if (s.wake.enabled) {
@@ -2847,6 +2945,16 @@ const RS = {
       e.preventDefault();
       return;
     }
+    if (!e.metaKey && !e.ctrlKey && !e.altKey) {
+      const slot = parseInt(e.key, 10);
+      if (!Number.isNaN(slot) && slot >= 1 && slot <= 6) {
+        if (s.mode === 'playing' && !s.gameOver && !s.paused && !s.currentChoices) {
+          RS.Systems.setManualWeaponBySlot(s, slot - 1);
+        }
+        e.preventDefault();
+        return;
+      }
+    }
     if (e.key === 'p' || e.key === 'P') {
       if (s.mode === 'playing' && !s.gameOver) {
         s.paused = !s.paused;
@@ -3436,6 +3544,18 @@ const RS = {
         }
       }
 
+      if (Array.isArray(RS.State.spinner.shots)) {
+        for (const shot of RS.State.spinner.shots) {
+          ctx.fillStyle = RS.Config.COLORS.spinner;
+          ctx.beginPath();
+          ctx.arc(shot.x, shot.y, shot.radius || 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+
       // Wake trails
       for (const t of RS.State.trails) {
         const a = 1 - t.t / t.life;
@@ -3614,6 +3734,15 @@ const RS = {
               const ready = (data.ammo || 0) > 0;
               const remain = ready || data.maxAmmo <= 0 ? 0 : Math.max(0, cooldown - (data.rechargeTimer || 0));
               return { fraction: Math.min(1, remain / cooldown), blocked: false, ready, remain, cooldown };
+            })();
+          case 'spinner':
+            return (() => {
+              const max = Math.max(1, s.spinner.maxBlades || 1);
+              const current = RS.Systems.spinnerBladeCount(s);
+              const spent = Math.max(0, max - current);
+              const fraction = Math.min(1, spent / max);
+              const ready = current > 0;
+              return { fraction, blocked: !ready, ready, remain: spent, cooldown: max };
             })();
           default:
             return { fraction: 0, blocked: false, ready: true, remain: 0, cooldown: 1 };
@@ -4122,6 +4251,7 @@ const RS = {
       const savedTrails = RS.State.trails;
       const savedVacuum = RS.State.vacuumDrops;
       const savedSpinner = RS.State.spinner.rings;
+      const savedSpinnerShots = RS.State.spinner.shots;
       RS.State.player.x = originX;
       RS.State.player.y = originY;
       RS.State.enemies = [];
@@ -4136,6 +4266,7 @@ const RS = {
       RS.State.trails = [];
       RS.State.vacuumDrops = [];
       RS.State.spinner.rings = [];
+      RS.State.spinner.shots = [];
       const prevHidePlayer = RS.State.hidePlayerSprite;
       RS.State.hidePlayerSprite = true;
       ctx.save();
@@ -4156,6 +4287,7 @@ const RS = {
       RS.State.trails = savedTrails;
       RS.State.vacuumDrops = savedVacuum;
       RS.State.spinner.rings = savedSpinner;
+      RS.State.spinner.shots = savedSpinnerShots;
       ctx.fillStyle = 'rgba(0,0,0,0.35)';
       ctx.fillRect(0, 0, W, H);
       const titleScale = 12;

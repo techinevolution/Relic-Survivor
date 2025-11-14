@@ -19,6 +19,7 @@
   - Leaderboard-ready once persistence exists.
   - Unlock condition: collect every weapon in Adventure (temporarily open for development/testing builds).
   - Future UI polish: add a compact auto bar plus a relic/global icon strip under the weapon dock so pickups read at a glance.
+  - Spinner manual aim polish: blades should launch from their current orbit slot, travel past the cursor (boomerang range), then drift back into the standard formation (pairs/triangle/square/pentagon) using tempo speed; UI should show ammo/active shots and scroll/number hotkeys must access Spinner.
 
 ## Recent Systems (Nov 2024)
 - **Audio & Options**: Inline music manager now cycles four Arcade tracks, runs the menu loop with crossfades, and exposes a Music toggle under Options (title or pause menu). Respect `settings.musicMuted` anywhere new audio is added.
