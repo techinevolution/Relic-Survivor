@@ -2200,7 +2200,7 @@ const RS = {
         sfxFlight: null,
         sfxReverse: null
       };
-      const boomVol = RS.Audio.sfxVolume * 0.9;
+      const boomVol = RS.Audio.sfxVolume * 0.64;
       boomerang.sfxFlight = RS.Audio.playSfx('boomerang_flight', { loop: true, volume: boomVol });
       s.boomerangs.push(boomerang);
       s.stats.boomerangsThrown++;
@@ -2326,7 +2326,7 @@ const RS = {
           const e = s.enemies[j];
           if (RS.Util.dist2(b.x, b.y, e.x, e.y) < (12 + e.r) ** 2) {
             RS.Systems.applyDamage(e, RS.Systems.effDamage(data.damage, s), s, 'boomerang');
-            const boomVol = RS.Audio.sfxVolume * 0.9;
+            const boomVol = RS.Audio.sfxVolume * 0.64;
             RS.Audio.playSfx('boomerang_thump', { volume: boomVol });
             if (!b.hitEnemies) {
               if (b.sfxFlight) {
