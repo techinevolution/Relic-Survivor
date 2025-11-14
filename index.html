@@ -211,6 +211,22 @@ const RS = {
     muffleFactor: 1,
     muffleLevel: 0.45,
     muffleResponse: 0.25,
+    applyAttenuationToTrack(track) {
+      if (!track || !track.audio) return;
+      const att = typeof this.muffleFactor === 'number' ? this.muffleFactor : 1;
+      track.audio.volume = Math.max(0, Math.min(1, track.volume * att));
+    },
+    applyAttenuationAll() {
+      const seen = new Set();
+      if (this.current) {
+        this.applyAttenuationToTrack(this.current);
+        seen.add(this.current);
+      }
+      this.activeTracks.forEach(track => {
+        if (seen.has(track)) return;
+        this.applyAttenuationToTrack(track);
+      });
+    },
     ensureRoot() {
       if (this.root) return this.root;
       let host = document.getElementById('rs-audio-root');
@@ -481,7 +497,7 @@ const RS = {
     getDesiredVolume() {
       const st = typeof RS !== 'undefined' ? RS.State : null;
       if (st && st.settings && st.settings.musicMuted) return 0;
-      return this.volume * (this.muffleFactor ?? 1);
+      return this.volume;
     },
     refreshVolumes() {
       this.ensureTracks();
@@ -493,6 +509,7 @@ const RS = {
       this.activeTracks.forEach(track => {
         if (track !== this.current) this.setFade(track, target, fade, false);
       });
+      this.applyAttenuationAll();
     },
     onTrackEnded(track) {
       if (!track) return;
@@ -552,7 +569,7 @@ const RS = {
         const frac = Math.min(1, track.fadeElapsed / track.fadeDuration);
         const newVol = track.startVolume + (track.targetVolume - track.startVolume) * frac;
         track.volume = Math.max(0, Math.min(this.volume, newVol));
-        track.audio.volume = track.volume;
+        this.applyAttenuationToTrack(track);
         if (frac >= 1) {
           track.fadeDuration = 0;
           if (track.stopOnZero && track.targetVolume <= 0) {
@@ -578,7 +595,12 @@ const RS = {
       const response = Math.max(0.01, this.muffleResponse || 0.2);
       const lerp = dt > 0 ? Math.min(1, dt / response) : 1;
       if (!Number.isFinite(this.muffleFactor)) this.muffleFactor = 1;
-      this.muffleFactor += (targetMuffle - this.muffleFactor) * lerp;
+      const prevMuffle = this.muffleFactor;
+      const nextMuffle = prevMuffle + (targetMuffle - prevMuffle) * lerp;
+      this.muffleFactor = nextMuffle;
+      if (this.canPlay && Math.abs(nextMuffle - prevMuffle) > 0.002) {
+        this.applyAttenuationAll();
+      }
       const prevGameOver = this.wasGameOver;
       const gameOver = !!(state && state.gameOver);
       if (gameOver && !prevGameOver) {
