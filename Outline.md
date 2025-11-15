@@ -62,6 +62,7 @@
 - **Skybrand (Lightning)**
   - Ranks increase chain count.
   - Rank 5 expansion: chance for each chain to fork to an additional enemy.
+  - Future augment relic: `Stormshard Chorus` (name WIP) that adds a zizzling aftershock (`lightning_zizzle.mp3`) as the secondary effect; plan to gate it behind Skybrand Rank 5 similar to Skyhook Resonance.
 - **Bombbloom**
   - Halve base explosion radius and sprite size.
   - Rank-ups increase bomb count per drop.

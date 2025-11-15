@@ -190,7 +190,8 @@ const RS = {
       boomerang_flight_reverse: 'Audio/SFX/Boomerang/boomerang_flight_reverse.mp3',
       boomerang_thump: 'Audio/SFX/Boomerang/boomerang_thump.mp3',
       bow_shot: 'Audio/SFX/Bow/bow_shot.mp3',
-      arrow_thump: 'Audio/SFX/Bow/arrow_thump.mp3'
+      arrow_thump: 'Audio/SFX/Bow/arrow_thump.mp3',
+      lightning_bolt: 'Audio/SFX/Lightning/lightning_bolt.mp3'
     },
     tracks: {},
     sfx: {},
@@ -2637,6 +2638,7 @@ const RS = {
           }
         }
         if (anyHit) s.stats.boltsCast++;
+        if (anyHit) RS.Audio.playSfx('lightning_bolt', { volume: RS.Audio.sfxVolume });
         s.storm.timer = s.storm.cooldown;
         return anyHit;
       };
