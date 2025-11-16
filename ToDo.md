@@ -45,6 +45,10 @@
 - [ ] Add a relic that unlocks Skybrand branching at rank 5 instead of the rank itself.
 - [x] Adjust Sanguine Thread to boost only the sword and gate its rank-ups behind Sword Rank 5.  ✅ Now a Brambleblade-only augment unlocked at sword rank 5.
 - [ ] Wire up the new weapon SFX set (files landed under Audio/SFX/) so each weapon fire/use cue plays an appropriate sound.
+- [ ] EXP pickup polish: drop the `exp_pickup` volume another 10% (total 15% below music) and ensure boomerang-carried XP rides visibly on the boomerang and plays the pickup sound when the boomerang returns (or when vortex auto-collect finishes).
+- [ ] Bow readability: scale arrow sprites up by ~30% so volleys read clearly mid-fight.
+- [ ] Whirring Wake chip polish: rework the trail visuals (brighter pulses/longer streaks) without changing damage.
+- [ ] Sword swipe QoL: sword arcs should vacuum nearby drops (XP, hearts, vortex orbs) when they connect, mirroring boomerang returns.
 
 ## Enemies & Encounters
 - [x] Slimes: add delay before split children become targetable/damageable.  ✅ parent shakes then spawns staggered minis.
@@ -59,6 +63,7 @@
 - [ ] Decide how placeholders vs. final art roll out (e.g., silhouettes first, full Atari treatment later).
   - [ ] Create lightweight tree/bush/rock sprites using new palette and Atari-style simplification.
 - [x] Halve mini-slime contact damage so they deal 0.5 heart on hit.  ✅ minis now stagger in with half-heart damage.
+- [ ] Azure slimes: respect the “24+ damage instantly vaporizes” rule even if prior hits came from boomerangs; currently bombs/other weapons can trigger splits after the overkill threshold.
 
 ## Adventure & Progression
 - [ ] Place first-run weapon pickups in Adventure stages; mark unlocked status in persistence.

@@ -48,17 +48,21 @@
   - Weapon rank-ups change behavior/coverage only (no per-weapon damage or attack-speed scaling).
   - Global relics handle universal damage, attack speed, and utility boosts.
   - Projectile weapons auto-target nearby threats regardless of player facing; only the sword keys off movement direction.
+  - Audio polish backlog: XP pickup SFX should play even when vortex/boomerang scoops orbs, and overall mix needs another ~10% reduction so spam feels soft.
 - **Sword (Brambleblade)**
   - Rank 1: 45° strike.
   - Each rank widens the arc until 180° at max rank.
   - Visual: conjure a blade in front of the survivor that sweeps across the active arc with a bright trail so the hit zone reads clearly.
+  - Desired QoL: sword swipes should vacuum nearby drops (XP gems, hearts, vortex orbs) on contact, similar to how boomerangs scoop pickups.
 - **Boomerang (Skyhook Loop)**
   - Auto mode: eventually launch the full volley simultaneously at unique targets, then idle for a longer cooldown (lets cooldown relics matter again).
   - Manual mode: keep rapid one-at-a-time throws that follow the click aim; boomerangs already seek XP when no enemies remain and skip hearts when full.
   - Each rank adds another boomerang to the volley.
+  - UX polish: XP orbs gathered by a returning boomerang should ride the weapon, surface above it, and trigger the pickup sound when the return arrives (even if a vortex initiated the gather).
 - **Bow (Voyager Bow)**
   - Ranks add arrows.
   - Projectiles render as forward-pointing triangles.
+  - Upcoming tweak: scale up arrow sprites approximately 30% so volleys read clearly as the roster grows.
 - **Skybrand (Lightning)**
   - Ranks increase chain count.
   - Rank 5 expansion: chance for each chain to fork to an additional enemy.
@@ -72,6 +76,7 @@
   - Cap core blades at 5 orbiting projectiles.
   - Wake trail starts short and lengthens with ranks.
   - Manual mode concept: press/hold to expand the ring, release to retract.
+  - Visual backlog: Whirring Wake’s trail should read brighter/longer without increasing damage so players notice it’s active.
 - **Tempo Charm**
   - Provides global attack-speed scaling per weapon: sword swing frequency, boomerang volleys, bow salvos, skybrand cooldown, bomb volleys, spinner rotation speed.
 - **Magnet Rune**
@@ -86,6 +91,7 @@
 
 ## Enemies & Encounters
 - **Slimes**: Delay mini-split spawn to avoid instant multi-hits.
+  - Azure variant task: ensure any hit dealing ≥24 damage vaporizes the slime even if earlier boomerang pokes occurred; current overkill logic still lets bombs trigger splits.
 - **Bats**: Leave as current baseline.
 - **Goblins**: Initial elites use standard goblin stats for fairness.
 - **Skull**: Fast “dash across screen” unit with red outline and flame trail.
