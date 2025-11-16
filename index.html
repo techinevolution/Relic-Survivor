@@ -191,7 +191,9 @@ const RS = {
       boomerang_thump: 'Audio/SFX/Boomerang/boomerang_thump.mp3',
       bow_shot: 'Audio/SFX/Bow/bow_shot.mp3',
       arrow_thump: 'Audio/SFX/Bow/arrow_thump.mp3',
-      lightning_bolt: 'Audio/SFX/Lightning/lightning_bolt.mp3'
+      lightning_bolt: 'Audio/SFX/Lightning/lightning_bolt.mp3',
+      sword_swipe: 'Audio/SFX/Sword/sword_swipe.mp3',
+      heart_pickup: 'Audio/SFX/Heart/heart_pickup.mp3'
     },
     tracks: {},
     sfx: {},
@@ -2431,6 +2433,7 @@ const RS = {
           span: end - start,
           hit: new WeakSet()
         });
+        RS.Audio.playSfx('sword_swipe', { volume: RS.Audio.sfxVolume * 0.75 });
         sw.timer = sw.cooldown;
         s.stats.swordSwings += 1;
         sw.lastAngle = angle;
@@ -2821,6 +2824,7 @@ const RS = {
         const d = Math.hypot(h.x - s.player.x, h.y - s.player.y);
         if (d < s.player.r + 12 && s.player.hearts < s.player.maxHearts) {
           s.player.hearts += 1;
+          RS.Audio.playSfx('heart_pickup', { volume: RS.Audio.sfxVolume });
           s.heals.splice(i, 1);
         }
       }
@@ -4374,7 +4378,19 @@ const RS = {
         RS.UI.addHotspot(btnX, btnY, btnWidth, btnHeight, ((delta) => () => { RS.Systems.devAdjustTime(delta); })(btn.delta));
         btnX += btnWidth + btnSpacing;
       }
-      const baseY = timeBoxY + timeBoxH + 28;
+      const vacuumBtnY = timeBoxY + timeBoxH + 18;
+      const vacuumBtnH = 28;
+      ctx.fillStyle = 'rgba(120,144,255,0.22)';
+      ctx.fillRect(toggleX, vacuumBtnY, toggleW, vacuumBtnH);
+      ctx.strokeStyle = 'rgba(120,144,255,0.45)';
+      ctx.strokeRect(toggleX, vacuumBtnY, toggleW, vacuumBtnH);
+      ctx.fillStyle = '#dbeafe';
+      ctx.font = '13px ui-sans-serif,system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('Spawn Vacuum Drop', toggleX + toggleW / 2, vacuumBtnY + vacuumBtnH / 2 + 1);
+      RS.UI.addHotspot(toggleX, vacuumBtnY, toggleW, vacuumBtnH, () => { RS.Systems.spawnVacuumDrop(RS.State); });
+      const baseY = vacuumBtnY + vacuumBtnH + 24;
       const columnData = [
         {
           heading: 'Weapon Ranks',
