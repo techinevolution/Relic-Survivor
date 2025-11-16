@@ -193,7 +193,8 @@ const RS = {
       arrow_thump: 'Audio/SFX/Bow/arrow_thump.mp3',
       lightning_bolt: 'Audio/SFX/Lightning/lightning_bolt.mp3',
       sword_swipe: 'Audio/SFX/Sword/sword_swipe.mp3',
-      heart_pickup: 'Audio/SFX/Heart/heart_pickup.mp3'
+      heart_pickup: 'Audio/SFX/Heart/heart_pickup.mp3',
+      exp_pickup: 'Audio/SFX/Exp/exp_pickup.mp3'
     },
     tracks: {},
     sfx: {},
@@ -2803,6 +2804,7 @@ const RS = {
           if (dist < 6) {
             s.player.xp += o.v * s.player.xpGain;
             s.orbs.splice(i, 1);
+            RS.Audio.playSfx('exp_pickup', { volume: RS.Audio.sfxVolume });
             while (s.player.xp + RS.Config.BALANCE.XP_EPS >= s.player.xpTo) {
               const from = s.player.level;
               s.player.xp -= s.player.xpTo;
