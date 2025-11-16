@@ -4468,9 +4468,7 @@ const RS = {
       ctx.restore();
     },
     death() {
-      const { W } = RS.Config, s = RS.State, y = RS.Config.H / 2 - 100;
-      RS.Render.drawCenterText('You Fell', 36, y);
-      RS.Render.drawCenterText(`Survived ${RS.Util.fmtTime(s.elapsed)}`, 20, y + 40);
+      const { W, H } = RS.Config, s = RS.State;
       const totalRelicLevels = Object.values(s.levels).reduce((a, b) => a + (b || 0), 0);
       const lines = [
         `Mode: ${s.modeLabel}`,
@@ -4488,18 +4486,26 @@ const RS = {
       ];
       const chips = Object.values(RS.Registry.Relics).filter(u => (s.levels[u.id] || 0) > 0);
       const chipCols = 4, chipW = 180, chipH = 36, chipGap = 10;
-      const baseH = 24 * lines.length + 24;
+      const statsH = 24 * lines.length + 24;
       const chipRows = Math.max(1, Math.ceil(chips.length / chipCols));
       const chipsH = chipRows * (chipH + chipGap) + 10;
       const boxW = chipCols * (chipW + chipGap) - chipGap + 40;
-      const boxH = baseH + 20 + chipsH;
+      const boxH = statsH + 20 + chipsH;
+      const buttonOffset = 92;
+      const boxOffset = 60;
+      const layoutHeight = buttonOffset + boxOffset + boxH;
+      const layoutTop = Math.max(16, (H - layoutHeight) / 2);
+      const y = layoutTop + buttonOffset;
+      const boxTop = y + boxOffset;
+      RS.Render.drawCenterText('You Fell', 36, y);
+      RS.Render.drawCenterText(`Survived ${RS.Util.fmtTime(s.elapsed)}`, 20, y + 40);
       ctx.fillStyle = 'rgba(0,0,0,0.65)';
-      ctx.fillRect(W / 2 - boxW / 2, y + 60, boxW, boxH);
+      ctx.fillRect(W / 2 - boxW / 2, boxTop, boxW, boxH);
       ctx.fillStyle = '#ddd';
       ctx.font = '16px ui-sans-serif,system-ui';
       ctx.textAlign = 'center';
-      lines.forEach((line, i) => ctx.fillText(line, W / 2, y + 86 + i * 24));
-      const gridY = y + 86 + lines.length * 24 + 20;
+      lines.forEach((line, i) => ctx.fillText(line, W / 2, boxTop + 26 + i * 24));
+      const gridY = boxTop + 26 + statsH;
       for (let i = 0; i < chips.length; i++) {
         const c = chips[i], col = i % chipCols, row = (i / chipCols) | 0;
         const cx = W / 2 - ((chipCols * (chipW + chipGap) - chipGap) / 2) + col * (chipW + chipGap);
@@ -4512,8 +4518,8 @@ const RS = {
         ctx.fillText(`Lv ${RS.State.levels[c.id]}`, cx + 8, cy + 28);
       }
       ctx.textAlign = 'start';
-      RS.UI.addBtn(W / 2 - 130, y - 92, 120, 36, 'Restart', () => { RS.Systems.restart(RS.State); });
-      RS.UI.addBtn(W / 2 + 10, y - 92, 120, 36, 'Main Menu', () => {
+      RS.UI.addBtn(W / 2 - 130, layoutTop, 120, 36, 'Restart', () => { RS.Systems.restart(RS.State); });
+      RS.UI.addBtn(W / 2 + 10, layoutTop, 120, 36, 'Main Menu', () => {
         RS.Systems.haltBoomerangs(RS.State, { clear: true });
         RS.State.mode = 'menu';
         RS.State.gameOver = false;
