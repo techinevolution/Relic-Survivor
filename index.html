@@ -1282,7 +1282,8 @@ const RS = {
     {
       id: 'spinner',
       name: 'Forest Spinner',
-      desc: '+rings & blades; wider coverage',
+      desc: 'Circling Spinner',
+      rankDesc: '+1 Spinner',
       max: 5,
       onPick(s) {
         if (s.spinner.rings.length === 0) RS.Systems.addWeaponToSlots(s, 'spinner');
@@ -1292,7 +1293,8 @@ const RS = {
     {
       id: 'sword',
       name: 'Brambleblade',
-      desc: 'Arc slash widens with practice',
+      desc: 'Sword Slash',
+      rankDesc: 'Widen Slash Angle',
       max: 5,
       onPick(s) {
         if (!s.sword.enabled) { s.sword.enabled = true; s.sword.timer = 0.15; RS.Systems.addWeaponToSlots(s, 'sword'); }
@@ -1302,7 +1304,8 @@ const RS = {
     {
       id: 'bow',
       name: 'Voyager Bow',
-      desc: '+1 arrow per rank',
+      desc: 'Shoot Arrows',
+      rankDesc: '+1 Arrow',
       max: 5,
       onPick(s) {
         if (!s.bow.enabled) {
@@ -1318,7 +1321,7 @@ const RS = {
     {
       id: 'boomerang',
       name: 'Skyhook Loop',
-      desc: '+1 boomerang; cooldown ↓',
+      desc: '+1 Skyhook',
       max: 5,
       onPick(s) {
         RS.Systems.updateBoomerangProfile(s);
@@ -1327,7 +1330,7 @@ const RS = {
     {
       id: 'hook',
       name: 'Skyhook Resonance',
-      desc: 'Returning blades scoop wider pickups',
+      desc: 'Wider Pickups',
       max: 5,
       canOffer: (s) => (s.levels.boomerang || 0) >= 5,
       onPick(s) {
@@ -1337,7 +1340,7 @@ const RS = {
     {
       id: 'pierce',
       name: 'Riftfeather Fletching',
-      desc: 'Arrows pierce +1 foe',
+      desc: '+1 Pierce',
       max: 5,
       canOffer: (s) => s.player.level >= 5 && (s.levels.bow || 0) >= 5,
       onPick(s) {
@@ -1348,7 +1351,8 @@ const RS = {
     {
       id: 'storm',
       name: 'Skybrand Sigil',
-      desc: '+1 lightning branch; cooldown ↓',
+      desc: 'Lightning Arc',
+      rankDesc: '+1 Lightning Branch',
       max: 5,
       onPick(s) {
         if (!s.storm.enabled) { s.storm.enabled = true; s.storm.timer = 0.4; RS.Systems.addWeaponToSlots(s, 'storm'); }
@@ -1358,21 +1362,22 @@ const RS = {
     {
       id: 'magnet',
       name: 'Magnet Rune',
-      desc: 'XP pickup radius ↑',
+      desc: 'XP Pickup Radius',
       max: 5,
       onPick(s) { RS.Systems.updateMagnetProfile(s); }
     },
     {
       id: 'bead',
       name: 'Guardian Bead',
-      desc: '+1 max heart; heal 1',
+      desc: '+1 Max Hearts',
       max: 8,
       onPick(s) { s.player.maxHearts += 1; s.player.hearts = Math.min(s.player.maxHearts, s.player.hearts + 1); }
     },
     {
       id: 'bomb',
       name: 'Bombbloom',
-      desc: 'Drop bomb + extra trailing blooms',
+      desc: 'Drop/Toss A Bomb',
+      rankDesc: '+1 Bomb',
       max: 5,
       onPick(s) {
         if (!s.bomb.enabled) {
@@ -1393,7 +1398,7 @@ const RS = {
     {
       id: 'wake',
       name: 'Whirring Wake',
-      desc: 'Blades leave fading trails (½ dmg) — requires Spinner',
+      desc: 'Leaves Damaging Trails',
       max: 5,
       canOffer: (s) => (s.levels.spinner || 0) >= 5 && s.player.level >= 5,
       onPick(s) {
@@ -1405,7 +1410,7 @@ const RS = {
     {
       id: 'tempo',
       name: 'Tempo Charm',
-      desc: 'Attack cadence ↑; boomerang flight speed ↑',
+      desc: 'Attack Speed +10%',
       max: 10,
       onPick(s) {
         s.atkSpeed *= 1.10;
@@ -1415,7 +1420,7 @@ const RS = {
     {
       id: 'leech',
       name: 'Sanguine Thread',
-      desc: 'Sword strikes return a sliver of damage as healing (requires Sword Lv5)',
+      desc: 'Sword Health Drain',
       max: 5,
       canOffer: (s) => (s.levels.sword || 0) >= 5,
       onPick(s) { s.leechRate += 0.0015; }
@@ -1423,7 +1428,7 @@ const RS = {
     {
       id: 'wisdom',
       name: 'Lightstone of Wisdom',
-      desc: 'All damage +15%',
+      desc: 'All Damage +15%',
       max: 10,
       onPick(s) { s.player.damageMult *= 1.15; }
     },
@@ -3106,12 +3111,14 @@ const RS = {
         const btn = document.createElement('button');
         btn.className = 'choice';
         const icon = RS.Registry.ICON[c.id] || '•';
+        const currentRank = RS.State.levels[c.id] || 0;
+        const descText = currentRank > 0 && c.rankDesc ? c.rankDesc : c.desc;
         btn.innerHTML = `
           <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
             <div style="font-size:32px;line-height:1">${icon}</div>
             <div style="color:#e2e8f0;font-weight:600;text-align:center">${c.name}</div>
-            <div style="color:#94a3b8;font-size:13px;text-align:center">${c.desc}</div>
-            <div style="color:#94a3b8;font-size:12px">Rank ${(RS.State.levels[c.id] || 0)} / ${c.max}</div>
+            <div style="color:#94a3b8;font-size:13px;text-align:center">${descText}</div>
+            <div style="color:#94a3b8;font-size:12px">Rank ${currentRank} / ${c.max}</div>
           </div>
         `;
         btn.onclick = () => RS.UI.takeUpgrade(c);
