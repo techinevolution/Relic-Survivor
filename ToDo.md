@@ -64,7 +64,7 @@
 - [ ] Decide how placeholders vs. final art roll out (e.g., silhouettes first, full Atari treatment later).
   - [ ] Create lightweight tree/bush/rock sprites using new palette and Atari-style simplification.
 - [x] Halve mini-slime contact damage so they deal 0.5 heart on hit.  ✅ minis now stagger in with half-heart damage.
-- [ ] Azure slimes: respect the “24+ damage instantly vaporizes” rule even if prior hits came from boomerangs or other sources; currently bombs/other weapons can trigger splits after the overkill threshold.
+- [x] Azure slimes: respect the “24+ damage instantly vaporizes” rule even if prior hits came from boomerangs or other sources; currently bombs/other weapons can trigger splits after the overkill threshold.
 
 ## Adventure & Progression
 - [ ] Place first-run weapon pickups in Adventure stages; mark unlocked status in persistence.

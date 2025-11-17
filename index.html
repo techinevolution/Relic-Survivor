@@ -2080,9 +2080,14 @@ const RS = {
         const baseline = e.maxHp || prevHp || RS.Config.ENEMIES.slime.hp || 12;
         const threshold = baseline * 2;
         const rawDamage = Math.floor(d + 1e-6);
+        const cumulativeDamage = ((e.overkillDamage || 0) + rawDamage);
         if (prevHp >= baseline && rawDamage >= threshold) {
           e.suppressSplit = true;
           e.hp = Math.min(e.hp, 0);
+        } else if (cumulativeDamage >= threshold) {
+          e.suppressSplit = true;
+        } else {
+          e.overkillDamage = cumulativeDamage;
         }
       }
       this.onDamage(dealt, s, source);
