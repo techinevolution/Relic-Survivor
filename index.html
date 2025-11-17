@@ -1937,11 +1937,9 @@ const RS = {
     updateStormProfile(s) {
       const rank = s.levels.storm || 0;
       const baseChains = 2;
-      const baseCooldown = RS.Config.WEAPONS.storm.baseCooldown || 3.0;
       s.storm.chains = baseChains + Math.max(0, rank - 1);
-      s.storm.cooldown = Math.max(1.2, baseCooldown - Math.max(0, rank - 1) * 0.25);
-      const baseDmg = RS.Config.WEAPONS.storm.baseDamage;
-      s.storm.dmg = baseDmg + Math.max(0, rank - 1) * 6;
+      s.storm.cooldown = RS.Config.WEAPONS.storm.baseCooldown || 2.0;
+      s.storm.dmg = RS.Config.WEAPONS.storm.baseDamage;
       s.storm.forkChance = rank >= 5 ? 0.35 : 0;
     },
     updateSpinnerProfile(s) {
