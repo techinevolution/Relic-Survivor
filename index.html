@@ -1791,6 +1791,7 @@ const RS = {
         outDistance: maxRange,
         returning: false,
         ringIndex,
+        spin: 0,
         radius: 12,
         hitsOut: new WeakSet(),
         hitsIn: new WeakSet()
@@ -1804,6 +1805,8 @@ const RS = {
       for (let i = s.spinner.shots.length - 1; i >= 0; i--) {
         const shot = s.spinner.shots[i];
         const baseSpeed = shot.speed || 520;
+        const spinSpeed = 8;
+        shot.spin = (shot.spin || 0) + spinSpeed * dt;
         if (!shot.returning) {
           const step = baseSpeed * dt;
           shot.x += shot.dirX * step;
@@ -3835,13 +3838,23 @@ const RS = {
 
       if (Array.isArray(RS.State.spinner.shots)) {
         for (const shot of RS.State.spinner.shots) {
-          ctx.fillStyle = RS.Config.COLORS.spinner;
-          ctx.beginPath();
-          ctx.arc(shot.x, shot.y, shot.radius || 10, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-          ctx.lineWidth = 2;
-          ctx.stroke();
+          const img = RS.Render.ensureSpinnerSprite();
+          const size = 20;
+          if (img && img.complete && img.naturalWidth > 0) {
+            ctx.save();
+            ctx.translate(shot.x, shot.y);
+            ctx.rotate(shot.spin || 0);
+            ctx.drawImage(img, -size / 2, -size / 2, size, size);
+            ctx.restore();
+          } else {
+            ctx.fillStyle = RS.Config.COLORS.spinner;
+            ctx.beginPath();
+            ctx.arc(shot.x, shot.y, shot.radius || 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+          }
         }
       }
 
