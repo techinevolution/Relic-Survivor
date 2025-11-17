@@ -2218,6 +2218,9 @@ const RS = {
       let angle;
       if (opts.target) {
         angle = Math.atan2(opts.target.y - s.player.y, opts.target.x - s.player.x);
+        const reach = data.range || RS.Config.WEAPONS.boomerang.range || 320;
+        const dist = Math.hypot(opts.target.x - s.player.x, opts.target.y - s.player.y);
+        if (dist > reach) return false;
       } else if (typeof opts.angle === 'number') {
         angle = opts.angle;
       } else {
@@ -2253,6 +2256,7 @@ const RS = {
       boomerang.sfxFlight = RS.Audio.playSfx('boomerang_flight', { loop: true, volume: boomVol });
       s.boomerangs.push(boomerang);
       s.stats.boomerangsThrown++;
+      return true;
     },
     stopBoomerangAudio(b) {
       if (!b) return;
@@ -2322,15 +2326,16 @@ const RS = {
       if (manualMode) {
         const cmd = this.takeManualCommand(s, 'boomerang');
         if (cmd && data.ammo > 0) {
-          data.ammo--;
-          this.spawnBoomerang(s, { target: { x: cmd.x, y: cmd.y }, manual: true });
+          const spawned = this.spawnBoomerang(s, { target: { x: cmd.x, y: cmd.y }, manual: true });
+          if (spawned) data.ammo--;
         }
       } else if (data.ammo > 0 && inFlight < capacity) {
         const tgt = this.pickBoomerangTargets(s, 1)[0];
-        data.ammo--;
-        if (tgt && typeof tgt.angle === 'number' && !tgt.x) this.spawnBoomerang(s, { angle: tgt.angle });
-        else if (tgt) this.spawnBoomerang(s, { target: tgt });
-        else this.spawnBoomerang(s, {});
+        let spawned = false;
+        if (tgt && typeof tgt.angle === 'number' && !tgt.x) spawned = this.spawnBoomerang(s, { angle: tgt.angle });
+        else if (tgt) spawned = this.spawnBoomerang(s, { target: tgt });
+        else spawned = false;
+        if (spawned) data.ammo--;
       }
       const startReturn = (b) => {
         if (b.stage === 'return') return;
