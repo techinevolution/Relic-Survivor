@@ -3282,6 +3282,14 @@ const RS = {
   // Renderers
   // =====================================
   RS.Render = {
+    spinnerSprite: null,
+    ensureSpinnerSprite() {
+      if (this.spinnerSprite) return this.spinnerSprite;
+      const img = new Image();
+      img.src = 'Assets/Images/Spinner/forest_spinner.png';
+      this.spinnerSprite = img;
+      return img;
+    },
     drawButton(x, y, w, h, label, inactive = false) {
       const fill = inactive ? '#1f2937' : '#047857';
       const stroke = inactive ? '#111827' : '#046149';
@@ -3812,10 +3820,16 @@ const RS = {
           const ang = ring.angle + (Math.PI * 2 * b) / ring.count;
           const bx = RS.State.player.x + Math.cos(ang) * ring.radius;
           const by = RS.State.player.y + Math.sin(ang) * ring.radius;
-          ctx.fillStyle = RS.Config.COLORS.spinner;
-          ctx.beginPath();
-          ctx.arc(bx, by, 10, 0, Math.PI * 2);
-          ctx.fill();
+          const img = RS.Render.ensureSpinnerSprite();
+          const size = 20;
+          if (img && img.complete && img.naturalWidth > 0) {
+            ctx.drawImage(img, bx - size / 2, by - size / 2, size, size);
+          } else {
+            ctx.fillStyle = RS.Config.COLORS.spinner;
+            ctx.beginPath();
+            ctx.arc(bx, by, 10, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
       }
 
