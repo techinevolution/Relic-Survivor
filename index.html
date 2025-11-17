@@ -3844,30 +3844,42 @@ const RS = {
         ctx.save();
         ctx.translate(b.x, b.y);
         ctx.rotate((b.heading || 0) + (b.spinAngle || 0));
-        ctx.fillStyle = '#f59e0b';
+        const outerR = 18;
+        const innerR = 10;
+        const start = -Math.PI * 0.55;
+        const end = Math.PI * 0.25;
+        const grad = ctx.createLinearGradient(
+          Math.cos(start) * outerR,
+          Math.sin(start) * outerR,
+          Math.cos(end) * outerR,
+          Math.sin(end) * outerR
+        );
+        grad.addColorStop(0, '#fed7aa');
+        grad.addColorStop(0.4, '#fdba74');
+        grad.addColorStop(1, '#fb923c');
         ctx.beginPath();
-        ctx.moveTo(-12, -4);
-        ctx.quadraticCurveTo(-3, -12, 10, -3);
-        ctx.lineTo(7, 4);
-        ctx.quadraticCurveTo(0, 2, -7, 6);
+        ctx.moveTo(Math.cos(start) * innerR, Math.sin(start) * innerR);
+        ctx.lineTo(Math.cos(start) * outerR, Math.sin(start) * outerR);
+        ctx.arc(0, 0, outerR, start, end);
+        ctx.lineTo(Math.cos(end) * innerR, Math.sin(end) * innerR);
+        ctx.arc(0, 0, innerR, end, start, true);
         ctx.closePath();
+        ctx.fillStyle = grad;
         ctx.fill();
-        ctx.strokeStyle = '#b45309';
-        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = '#9a3412';
+        ctx.lineWidth = 1.4;
         ctx.stroke();
-        ctx.fillStyle = '#fde68a';
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth = 1.1;
         ctx.beginPath();
-        ctx.moveTo(-9, -2);
-        ctx.quadraticCurveTo(-2, -6, 7, -1);
-        ctx.lineTo(4, 2);
-        ctx.quadraticCurveTo(-1, 1, -4, 4);
-        ctx.closePath();
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(253, 224, 71, 0.45)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(-7, -1);
-        ctx.quadraticCurveTo(-1, -4, 5, -0.5);
+        const mid = (start + end) / 2;
+        ctx.moveTo(Math.cos(start) * (innerR + 1), Math.sin(start) * (innerR + 1));
+        ctx.quadraticCurveTo(
+          Math.cos(mid) * (outerR + 1.5),
+          Math.sin(mid) * (outerR + 1.5),
+          Math.cos(end) * (innerR + 1),
+          Math.sin(end) * (innerR + 1)
+        );
         ctx.stroke();
         ctx.restore();
       }
