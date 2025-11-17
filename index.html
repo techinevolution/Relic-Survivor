@@ -634,6 +634,9 @@ const RS = {
             this.playNextArcade();
           }
         }
+      } else if (this.mode === 'arcade' && !this.current && !this.preparingNext) {
+        // Safeguard: if music was faded out (pause/level-up) and never restarted, kick the playlist back on.
+        this.startArcadePlaylist();
       }
     }
   };
