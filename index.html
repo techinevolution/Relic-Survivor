@@ -2246,7 +2246,8 @@ const RS = {
         born: s.elapsed,
         hitEnemies: 0,
         sfxFlight: null,
-        sfxReverse: null
+        sfxReverse: null,
+        carryVisuals: []
       };
       const boomVol = RS.Audio.sfxVolume * 0.64;
       boomerang.sfxFlight = RS.Audio.playSfx('boomerang_flight', { loop: true, volume: boomVol });
@@ -2393,6 +2394,13 @@ const RS = {
           const o = s.orbs[j];
           if (RS.Util.dist2(b.x, b.y, o.x, o.y) < data.collectRadius * data.collectRadius) {
             b.carryXp += o.v;
+            if (!Array.isArray(b.carryVisuals)) b.carryVisuals = [];
+            b.carryVisuals.push({
+              angle: Math.random() * Math.PI * 2,
+              radius: 6 + Math.random() * 4,
+              phase: Math.random() * Math.PI * 2
+            });
+            if (b.carryVisuals.length > 8) b.carryVisuals.shift();
             s.orbs.splice(j, 1);
           }
         }
@@ -2406,6 +2414,7 @@ const RS = {
           b.y = s.player.y;
           if (b.carryXp > 0) {
             s.player.xp += b.carryXp * s.player.xpGain;
+            RS.Audio.playSfx('exp_pickup', { volume: RS.Audio.sfxVolume * 0.85 });
             while (s.player.xp + RS.Config.BALANCE.XP_EPS >= s.player.xpTo) {
               const from = s.player.level;
               s.player.xp -= s.player.xpTo;
@@ -2415,6 +2424,8 @@ const RS = {
               RS.State.levelUpTo = s.player.level;
               RS.UI.rollChoices();
             }
+            b.carryXp = 0;
+            b.carryVisuals = [];
           }
           const maxAmmo = data.maxAmmo || 0;
           if (maxAmmo > 0) {
@@ -2816,7 +2827,7 @@ const RS = {
           if (dist < 6) {
             s.player.xp += o.v * s.player.xpGain;
             s.orbs.splice(i, 1);
-            RS.Audio.playSfx('exp_pickup', { volume: RS.Audio.sfxVolume });
+            RS.Audio.playSfx('exp_pickup', { volume: RS.Audio.sfxVolume * 0.85 });
             while (s.player.xp + RS.Config.BALANCE.XP_EPS >= s.player.xpTo) {
               const from = s.player.level;
               s.player.xp -= s.player.xpTo;
@@ -3908,6 +3919,20 @@ const RS = {
           Math.sin(end) * (innerR + 1)
         );
         ctx.stroke();
+        if (Array.isArray(b.carryVisuals) && b.carryVisuals.length) {
+          for (const orb of b.carryVisuals) {
+            const wobble = Math.sin((b.spinAngle || 0) + orb.phase) * 1.2;
+            const ox = Math.cos(orb.angle) * (orb.radius + wobble);
+            const oy = Math.sin(orb.angle) * (orb.radius + wobble);
+            ctx.beginPath();
+            ctx.arc(ox, oy, 4, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(92,201,255,0.9)';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            ctx.lineWidth = 0.8;
+            ctx.stroke();
+          }
+        }
         ctx.restore();
       }
 
