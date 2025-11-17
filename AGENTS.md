@@ -10,7 +10,7 @@
 - `Outline.md` captures long-term direction (Adventure mode, Arcade rename, enemy plans). `ToDo.md` tracks actionable tasks—update both when scoping new work.
 - `Data_formats.md` documents schemas shared between in-game data and external tooling; keep it accurate when introducing persistence, new enemies, or balance tables.
 - `AGENTS.md` remains the collaboration playbook.
-- Audio assets now live in `Audio/` (`Music/` and `SFX/` subfolders). Keep paths relative so the game still runs when opened directly from disk.
+- Audio assets now live in `Assets/Audio/` (`Music/` and `SFX/` subfolders). Keep paths relative so the game still runs when opened directly from disk.
 - No build tooling—keep the project runnable by double-clicking the HTML file in a browser.
 - Persistence plan: Use browser `localStorage` (single key JSON). Document schema in `Data_formats.md`; bump version when fields change.
 - Modal UI (level-up picker) is rendered with inline DOM elements inside the HTML. Everything else draws to the main `<canvas id="game">`.

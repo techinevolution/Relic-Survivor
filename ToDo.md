@@ -44,7 +44,7 @@
 - [x] Give Bombbloom a bomb-shaped sprite and VFX so it reads clearly in play.  ✅ new sprite + detonation flash.
 - [ ] Add a relic that unlocks Skybrand branching at rank 5 instead of the rank itself.
 - [x] Adjust Sanguine Thread to boost only the sword and gate its rank-ups behind Sword Rank 5.  ✅ Now a Brambleblade-only augment unlocked at sword rank 5.
-- [ ] Wire up the new weapon SFX set (files landed under Audio/SFX/) so each weapon fire/use cue plays an appropriate sound.
+- [ ] Wire up the new weapon SFX set (files landed under Assets/Audio/SFX/) so each weapon fire/use cue plays an appropriate sound.
 - [ ] EXP pickup polish: drop the `exp_pickup` volume another 10% (total 15% below music) and ensure boomerang-carried XP rides visibly on the boomerang and plays the pickup sound when the boomerang returns (or when vortex auto-collect finishes).
 - [ ] Bow readability: scale arrow sprites up by ~30% so volleys read clearly mid-fight.
 - [ ] Whirring Wake chip polish: rework the trail visuals (brighter pulses/longer streaks) without changing damage.
