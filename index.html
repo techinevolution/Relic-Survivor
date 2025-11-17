@@ -1626,16 +1626,17 @@ const RS = {
     make(s, opts) {
       const stats = RS.Config.ENEMIES.goblin;
       const elite = !!(opts && opts.elite);
-      const hp = stats.hp * (elite ? 2 : 1);
-      const xp = stats.xp * (elite ? 2 : 1);
+      const hp = stats.hp;
+      const xp = stats.xp;
+      const baseSpeed = elite ? stats.speed * 0.55 : stats.speed;
       return {
         type: 'goblin',
         x: opts.x,
         y: opts.y,
         vx: 0,
         vy: 0,
-        r: elite ? 16 : 14,
-        speed: elite ? stats.speed * 0.55 : stats.speed,
+        r: 14,
+        speed: baseSpeed,
         hp,
         maxHp: hp,
         dmg: stats.damage,

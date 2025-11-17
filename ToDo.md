@@ -49,10 +49,11 @@
 - [ ] Bow readability: scale arrow sprites up by ~30% so volleys read clearly mid-fight.
 - [ ] Whirring Wake chip polish: rework the trail visuals (brighter pulses/longer streaks) without changing damage.
 - [ ] Sword swipe QoL: sword arcs should vacuum nearby drops (XP, hearts, vortex orbs) when they connect, mirroring boomerang returns.
+- [ ] Boomerang targeting: skip throws when no enemy is within reach to avoid wasting ammo into the fog.
 
 ## Enemies & Encounters
 - [x] Slimes: add delay before split children become targetable/damageable.  ✅ parent shakes then spawns staggered minis.
-- [ ] Goblins: align initial elite stats with standard goblins.
+- [x] Goblins: align initial elite stats with standard goblins.
 - [ ] Design & implement new enemy behaviors:
   - [ ] Skull dash unit with flame trail.
   - [ ] Spider with charge-and-web root attack.
