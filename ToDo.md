@@ -46,7 +46,7 @@
 - [x] Adjust Sanguine Thread to boost only the sword and gate its rank-ups behind Sword Rank 5.  ✅ Now a Brambleblade-only augment unlocked at sword rank 5.
 - [x] Wire up the new weapon SFX set (files landed under Assets/Audio/SFX/) so each weapon fire/use cue plays an appropriate sound.
 - [x] EXP pickup polish: drop the `exp_pickup` volume another 10% (total 15% below music) and ensure boomerang-carried XP rides visibly on the boomerang and plays the pickup sound when the boomerang returns (or when vortex auto-collect finishes).
-- [ ] Bow readability: scale arrow sprites up by ~30% so volleys read clearly mid-fight.
+- [x] Bow readability: scale arrow sprites up by ~30% so volleys read clearly mid-fight.  ✅ arrows enlarged ~30% for better mid-fight visibility.
 - [ ] Whirring Wake chip polish: rework the trail visuals (brighter pulses/longer streaks) without changing damage.
 - [ ] Sword swipe QoL: sword arcs should vacuum nearby drops (XP, hearts, vortex orbs) when they connect, mirroring boomerang returns.
 - [x] Boomerang targeting: skip throws when no enemy is within reach to avoid wasting ammo into the fog.
@@ -62,7 +62,7 @@
   - [ ] Derive palette (bright greens, dark outlines) to match inspiration while keeping minimalist shapes.
   - [ ] Refresh ground layer (procedural grass noise + darker patches) with new palette.
 - [ ] Decide how placeholders vs. final art roll out (e.g., silhouettes first, full Atari treatment later).
-  - [ ] Create lightweight tree/bush/rock sprites using new palette and Atari-style simplification.
+  - [x] Create lightweight tree/bush/rock sprites using new palette and Atari-style simplification.
 - [x] Halve mini-slime contact damage so they deal 0.5 heart on hit.  ✅ minis now stagger in with half-heart damage.
 - [x] Azure slimes: respect the “24+ damage instantly vaporizes” rule even if prior hits came from boomerangs or other sources; currently bombs/other weapons can trigger splits after the overkill threshold.
 
