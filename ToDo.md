@@ -58,6 +58,42 @@
   - [ ] Skull dash unit with flame trail.
   - [ ] Spider with charge-and-web root attack.
   - [ ] Ghost with visibility-based vulnerability and retreat dash.
+
+## Mobile Compatibility & Touch Controls (Planning)
+### Success Criteria (first principles)
+1. **Visual framing** – the canvas must size itself to available viewport, fill the screen on desktop (fullscreen API) and mobile (address bar-hidden full bleed), and maintain aspect-safe letterboxing so gameplay space remains readable.
+2. **Input parity** – auto mode must be enjoyable in portrait *and* landscape with one-hand swipes, while manual (“dual stick”) mode must only enable in landscape with independent movement and aim controls that feel like native touch twins.
+3. **UI clarity** – weapon toolbar, pause/options, and level-up overlays must stay tappable without misfires; on mobile we need direct tap-to-swap weapon slots and a bombs tap override without disrupting desktop users.
+4. **State continuity** – device/orientation/control preferences should persist per player (localStorage + export) and survive itch.io iframe quirks.
+5. **Performance/audio** – touch handling and resize observers cannot starve the main loop; audio resume UX must still honor autoplay restrictions on mobile Safari/Chrome.
+
+### Implementation Steps
+1. **Responsive canvas + fullscreen**
+   - Hook a resize observer that scales the canvas to fit viewport while keeping internal resolution at 1280×720 (with devicePixelRatio awareness).
+   - Add a fullscreen toggle (keyboard + HUD button) that calls `requestFullscreen` on desktop, and a “Go Fullscreen” prompt for mobile Safari/Chrome.
+   - Detect orientation to apply portrait-safe letterboxing and HUD layout shifts.
+2. **Mode/orientation gating**
+   - Auto mode: allow portrait or landscape; adapt HUD to stack vertically in portrait, keep bottom dock in landscape.
+   - Manual mode: require landscape; surface prompt + lock button if device rotates to portrait mid-run; bombs in manual still triggered via aim stick tap.
+3. **Touch input layer**
+   - Add dual virtual sticks in landscape (left half = movement, right half = aim/manual fire) with smoothing and dead zones.
+   - In portrait/auto mode, use swipe/drag for movement and optional tap-to-cast manual overrides disabled.
+   - Ensure bombs can be dropped via tap (auto) or manual stick tap (manual), respecting cooldowns.
+4. **Mobile-specific HUD affordances**
+   - Turn the action bar icons into large tap targets on touch devices (only when `isMobile` true) so swapping manual weapon is deliberate.
+   - Provide mobile-only settings toggles: “Show Virtual Sticks,” “Swap Stick Sides,” “Tap-to-Bomb.”
+   - Keep desktop mouse users on hover/click controls to avoid accidental swaps.
+5. **Persistence + detection**
+   - Store a `mobile` settings block (`controlScheme`, `orientation`, `stickLayout`, `tapSwapEnabled`, `lastMode`) in localStorage/export.
+   - Detect touch support (`navigator.maxTouchPoints`) and viewport size early to enable/disable touch overlays without reloading.
+
+### Action Items
+- [ ] Implement canvas resizing + fullscreen toggle (desktop + mobile prompt).
+- [ ] Build orientation detector + HUD layout swapper (portrait vs landscape).
+- [ ] Ship dual-stick touch controls for manual mode (landscape only) plus simplified swipe controls for portrait auto mode.
+- [ ] Add mobile-only tap targets for weapon swapping + bomb drops.
+- [ ] Extend localStorage schema with `mobile` preferences and update export/import/reset flows.
+- [ ] Update itch.io embed instructions so fullscreen + touch prompts work inside iframe.
 - [ ] Plan art refresh toward “modern Atari” style using provided player sprite as reference.
   - [ ] Derive palette (bright greens, dark outlines) to match inspiration while keeping minimalist shapes.
   - [ ] Refresh ground layer (procedural grass noise + darker patches) with new palette.

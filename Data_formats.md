@@ -21,7 +21,14 @@ This reference keeps HTML game data and any external tooling (Python notebooks, 
   },
   "options": {
     "musicMuted": false,
-    "screenShake": true
+    "screenShake": true,
+    "mobile": {
+      "orientationPreference": "auto",      // 'auto' | 'landscape'
+      "controlMode": "auto",                // 'auto' | 'manual'
+      "stickLayout": "standard",            // 'standard' | 'swapped'
+      "tapWeaponSwap": true,
+      "tapToBomb": true
+    }
   }
 }
 ```
@@ -134,6 +141,21 @@ This reference keeps HTML game data and any external tooling (Python notebooks, 
 }
 ```
 - Lightweight way to document visual expectations before implementing new sprites.
+
+## Mobile Settings
+```jsonc
+{
+  "mobile": {
+    "orientationPreference": "auto",   // 'auto' lets auto mode run portrait/landscape, 'landscape' forces manual-friendly layout.
+    "controlMode": "auto",             // last selected “auto” or “manual” so returning players resume their preferred scheme.
+    "stickLayout": "standard",         // 'standard' = movement left / aim right, 'swapped' flips for left-handed play.
+    "tapWeaponSwap": true,             // enables tap-to-select action bar slots (touch devices only).
+    "tapToBomb": true                  // auto mode override that allows tapping arena to drop bombs.
+  }
+}
+```
+- Stored under `options.mobile` inside the save blob; update the version when adding new fields.
+- Manual mode should only save when the device is in landscape to avoid restarting portrait players in an unusable orientation.
 
 ---
 Keep this file updated whenever schemas change so tooling and in-game data stay in sync. Update `ToDo.md` when new sections are required.

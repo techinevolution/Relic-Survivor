@@ -71,6 +71,13 @@
 - Pause menu **Dev Mode** toggle (button beside Resume) enables invulnerability and provides +/- controls to adjust weapon & relic ranks mid-run; changes reapply the entire loadout instantly.
 - No automated test runner or CI—manual playtesting (load title, run a wave, verify relic choices, confirm death screen) remains the validation path.
 
+## Mobile & Touch Goals
+- Target itch.io embed and standalone browsers; the canvas must scale responsively and expose a fullscreen toggle (desktop) plus full-bleed mobile view.
+- Auto mode should be playable in portrait *or* landscape with simple drag movement and tap accommodations; manual/dual-stick play is landscape-only for readability and control fidelity.
+- Implement dual virtual sticks for movement/aim in landscape; bombs need a dedicated tap gesture when aimed manually.
+- Treat the weapon action bar as tap targets only on touch devices to avoid accidental swaps on desktop.
+- Persist touch/orientation preferences under `RS.State.settings.mobile` and document schema updates in `Data_formats.md`.
+
 ## Versioning Workflow
 - Increment versions by copying `index.html` to a versioned filename (e.g., `relic-survivor-vortex-r14-readable.html`) before major changes. Keep the previous version alongside it for rollback—there is no `archive/` folder yet.
 - Note feature goals and outstanding bugs in `AGENTS.md` until separate docs are introduced; include dates so the history stays clear.
