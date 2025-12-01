@@ -4848,21 +4848,11 @@ const RS = {
           const btnWidth = boxW - 120;
           const btnHeight = 56;
           const btnStartY = y + 100;
-          RS.Render.drawButton(x + (boxW - btnWidth) / 2, btnStartY, btnWidth, btnHeight, 'Adventure Mode', false);
+          const adventureLocked = true;
+          RS.Render.drawButton(x + (boxW - btnWidth) / 2, btnStartY, btnWidth, btnHeight, 'Adventure Mode (locked)', adventureLocked);
           ctx.font = '12px ui-sans-serif,system-ui';
           ctx.fillStyle = '#94a3b8';
-          ctx.fillText('Story stages that unlock gear (prototype)', W / 2, btnStartY + btnHeight + 18);
-          RS.UI.uiButtons.push({
-            x: x + (boxW - btnWidth) / 2,
-            y: btnStartY,
-            w: btnWidth,
-            h: btnHeight,
-            label: 'Adventure Mode',
-            action: () => {
-              RS.State.gameplayMode = 'adventure';
-              RS.Systems.restart(RS.State);
-            }
-          });
+          ctx.fillText('Adventure mode is disabled in this build.', W / 2, btnStartY + btnHeight + 18);
           const arcadeY = btnStartY + btnHeight + 24;
           const arcadeLocked = false;
           RS.Render.drawButton(x + (boxW - btnWidth) / 2, arcadeY, btnWidth, btnHeight, 'Arcade Mode', arcadeLocked);
