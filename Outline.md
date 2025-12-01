@@ -94,15 +94,15 @@
   - Add a fullscreen toggle (desktop HUD button + keyboard key) and a mobile prompt so the canvas fills the viewport even inside the itch.io iframe.
   - Scale the canvas via resize observers/devicePixelRatio to keep the 1280×720 game space crisp while letterboxing excess space.
 - **Orientation Rules**
-  - Auto mode: support portrait and landscape; shift HUD stacks (XP bar + toolbar vertical in portrait, horizontal in landscape).
-  - Manual mode: require landscape; show a rotate-device prompt and pause auto-aim if the player flips to portrait mid-run.
+  - Mobile default: start in portrait auto; shift HUD stacks (XP bar + toolbar vertical in portrait, horizontal in landscape).
+  - Manual mode: require landscape; show a rotate-device prompt and pause/disable manual if the player flips to portrait mid-run.
 - **Touch Controls**
   - Landscape/manual: dual virtual sticks (left = movement, right = aim/manual fire), with bombs triggered by tapping/pressing on the aim stick.
-  - Portrait/auto: drag-to-move joystick plus tap-to-bomb; keep manual abilities disabled.
+  - Portrait/auto: drag-to-move joystick plus tap-to-bomb; manual abilities disabled; toast to inform “Manual is landscape-only.”
   - Weapon bar icons become tap targets only when `isTouch` so users can swap manual weapons without opening the pause menu.
 - **Persistence & Settings**
-  - Store mobile control preferences (`orientationPreference`, `stickLayout`, `tapToBomb`, `tapWeaponSwap`) under `RS.State.settings.mobile`.
-  - Surface quick toggles in Options (“Swap Sticks,” “Auto Portrait Layout,” “Tap-to-Bomb”) and sync to localStorage/export.
+  - Store mobile control preferences (`orientationPreference`, `stickLayout`, `tapToBomb`, `tapWeaponSwap`, `lastMode`) under `RS.State.settings.mobile`; default to portrait auto on touch devices.
+  - Surface quick toggles in Options (“Swap Sticks,” “Auto Portrait Layout,” “Tap-to-Bomb,” “Force Desktop Layout”) and sync to localStorage/export.
 - **Itch.io Considerations**
   - Ensure all touch listeners are passive-friendly, audio resume prompts handle mobile autoplay restrictions, and fullscreen works both in embedded iframe and standalone browser tabs.
 

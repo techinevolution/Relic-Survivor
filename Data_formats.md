@@ -23,11 +23,12 @@ This reference keeps HTML game data and any external tooling (Python notebooks, 
     "musicMuted": false,
     "screenShake": true,
     "mobile": {
-      "orientationPreference": "auto",      // 'auto' | 'landscape'
-      "controlMode": "auto",                // 'auto' | 'manual'
+      "orientationPreference": "auto",      // 'auto' defaults to portrait on touch; 'landscape' forces manual-friendly layout
+      "controlMode": "auto",                // last selected; auto on boot for touch
       "stickLayout": "standard",            // 'standard' | 'swapped'
       "tapWeaponSwap": true,
-      "tapToBomb": true
+      "tapToBomb": true,
+      "lastMode": "auto"                    // remembers last mode but portrait auto enforced on mobile boot
     }
   }
 }
@@ -146,16 +147,17 @@ This reference keeps HTML game data and any external tooling (Python notebooks, 
 ```jsonc
 {
   "mobile": {
-    "orientationPreference": "auto",   // 'auto' lets auto mode run portrait/landscape, 'landscape' forces manual-friendly layout.
-    "controlMode": "auto",             // last selected “auto” or “manual” so returning players resume their preferred scheme.
+    "orientationPreference": "auto",   // 'auto' starts portrait on touch devices, 'landscape' forces manual-friendly layout.
+    "controlMode": "auto",             // last selected “auto” or “manual”; portrait auto enforced on mobile boot.
     "stickLayout": "standard",         // 'standard' = movement left / aim right, 'swapped' flips for left-handed play.
     "tapWeaponSwap": true,             // enables tap-to-select action bar slots (touch devices only).
-    "tapToBomb": true                  // auto mode override that allows tapping arena to drop bombs.
+    "tapToBomb": true,                 // auto mode override that allows tapping arena to drop bombs.
+    "lastMode": "auto"                 // remembers last used mode; override if portrait auto is forced
   }
 }
 ```
 - Stored under `options.mobile` inside the save blob; update the version when adding new fields.
-- Manual mode should only save when the device is in landscape to avoid restarting portrait players in an unusable orientation.
+- Manual mode should only save when the device is in landscape to avoid restarting portrait players in an unusable orientation; portrait boot should enforce auto until rotated.
 
 ---
 Keep this file updated whenever schemas change so tooling and in-game data stay in sync. Update `ToDo.md` when new sections are required.
